@@ -13,6 +13,9 @@
 # testing
 /coverage
 
+# local server-mode data store
+/.data
+
 # next.js
 /.next/
 /out/
