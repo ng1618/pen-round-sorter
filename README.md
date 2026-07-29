@@ -1,36 +1,46 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Round Sorter
 
-## Getting Started
+A small tool for splitting a group of friends into pen-and-paper (tabletop RPG)
+rounds. DMs submit what they're running and how many seats they have; players
+rank their top picks; an admin runs a matching pass and everyone gets seated.
 
-First, run the development server:
+Built for a real event on **20.11.2026** — see `Arbeitsdokument_pen-round-sorter_Block1_v2.0.md`
+for the full build plan, milestones, and testing checklist.
+
+## Status
+
+Working prototype: round submission, player ranking, Random Serial
+Dictatorship matching, and an admin dashboard with a match-quality
+breakdown. Styled as a tavern & parchment theme.
+
+Data currently lives in a flat JSON file (`.data/store.json`) via a small
+API, or in `localStorage` for solo browser testing — see [`DATENMODELL.md`](DATENMODELL.md)
+for the target data model and [`ENTSCHEIDUNGEN.md`](ENTSCHEIDUNGEN.md) for
+why. Migration to SQLite on Railway is planned for KW32.
+
+## Start
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000). See [`SETUP.md`](SETUP.md)
+for details (data modes, ports, troubleshooting).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Usage
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `/dm` — DMs submit a round: name, vibe, seat count
+- `/rank` — players rank their top rounds
+- `/admin` — run the matching pass, see results, reset data
 
-## Learn More
+## Docs
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| File | What |
+|---|---|
+| `Arbeitsdokument_pen-round-sorter_Block1_v2.0.md` | Master plan: milestones, weekly tasks, testing checklist |
+| `SETUP.md` | Local installation and running |
+| `DATENMODELL.md` | Target data model (not yet implemented) |
+| `ENTSCHEIDUNGEN.md` | Decisions made, with reasoning |
+| `TODO.md` | Items found during testing, not yet in the master plan |
+| `NOTIZEN.md` | Parked links and ideas |
