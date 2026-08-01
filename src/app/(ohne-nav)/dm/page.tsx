@@ -36,15 +36,15 @@ export default function DmPage() {
   return (
     <div className="flex flex-col gap-8">
       <div>
-        <h1 className="text-2xl font-bold">🗡️ Submit a round</h1>
+        <h1 className="text-2xl font-bold">🗡️ Runde eintragen</h1>
         <p className="mt-2 text-muted">
-          Tell players what you&apos;re running and how many seats are open at your table.
+          Sag den Mitspielenden, was du leitest und wie viele Plätze frei sind.
         </p>
       </div>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <label className="flex flex-col gap-1 text-sm">
-          Your name
+          Dein Name
           <input
             className="rounded-md border border-line bg-card px-3 py-2"
             value={dmName}
@@ -54,29 +54,29 @@ export default function DmPage() {
         </label>
 
         <label className="flex flex-col gap-1 text-sm">
-          Round title
+          Titel der Runde
           <input
             className="rounded-md border border-line bg-card px-3 py-2"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="e.g. Curse of the Sunken Keep"
+            placeholder="z. B. Der Fluch der versunkenen Burg"
             required
           />
         </label>
 
         <label className="flex flex-col gap-1 text-sm">
-          Vibe
+          Stimmung
           <textarea
             className="rounded-md border border-line bg-card px-3 py-2"
             value={vibe}
             onChange={(e) => setVibe(e.target.value)}
-            placeholder="Tone, system, what players should expect..."
+            placeholder="Ton, System, was die Mitspielenden erwartet …"
             rows={3}
           />
         </label>
 
         <label className="flex flex-col gap-1 text-sm">
-          Player capacity
+          Plätze
           <input
             type="number"
             min={1}
@@ -91,25 +91,24 @@ export default function DmPage() {
           type="submit"
           className="mt-2 rounded-md bg-accent px-4 py-2 font-medium text-white"
         >
-          Submit round
+          Runde eintragen
         </button>
 
         {submitted && (
-          <p className="text-sm text-green-700">Round submitted! You can add another one below.</p>
+          <p className="text-sm text-green-700">Runde eingetragen. Du kannst gleich noch eine anlegen.</p>
         )}
       </form>
 
       <div>
-        <h2 className="font-semibold text-accent">Rounds on offer ({rounds.length})</h2>
+        <h2 className="font-semibold text-accent">Angebotene Runden ({rounds.length})</h2>
         <ul className="mt-3 flex flex-col gap-2">
           {rounds.map((r) => (
             <li key={r.id} className="rounded-md border border-line bg-card p-3 text-sm">
-              <span className="font-medium">{r.title}</span> — DM {r.dmName} — cap{" "}
-              {r.capacity}
+              <span className="font-medium">{r.title}</span> — Leitung {r.dmName} — {r.capacity} Plätze
               {r.vibe && <p className="mt-1 text-muted">{r.vibe}</p>}
             </li>
           ))}
-          {rounds.length === 0 && <li className="text-sm text-muted">No rounds yet.</li>}
+          {rounds.length === 0 && <li className="text-sm text-muted">Noch keine Runden.</li>}
         </ul>
       </div>
     </div>

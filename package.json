@@ -6,15 +6,21 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:seed": "node scripts/seed.mjs",
+    "db:rounds": "node scripts/seed.mjs --nur-runden",
+    "db:check": "node scripts/check-db.mjs",
+    "db:passwort": "node scripts/passwort-zuruecksetzen.mjs"
   },
   "dependencies": {
+    "better-sqlite3": "^13.0.2",
     "next": "16.2.10",
     "react": "19.2.4",
     "react-dom": "19.2.4"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

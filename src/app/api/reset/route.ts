@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
-import { serverStore } from "@/lib/serverStore";
+import { istAngemeldet } from "@/lib/auth";
+import { dbStore } from "@/lib/dbStore";
 
 export async function POST() {
-  await serverStore.resetAll();
+  if (!(await istAngemeldet())) {
+    return NextResponse.json({ fehler: "Nicht angemeldet." }, { status: 401 });
+  }
+  await dbStore.resetAll();
   return NextResponse.json({ ok: true });
 }

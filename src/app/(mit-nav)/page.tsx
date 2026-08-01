@@ -4,9 +4,9 @@ export default function Home() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-bold">📜 Round Sorter</h1>
+        <h1 className="text-2xl font-bold">📜 Rundenverteiler</h1>
         <p className="mt-2 italic text-muted">
-          Choose your table, adventurer. The dice are already warm.
+          Such dir deinen Tisch aus. Die Würfel sind schon warm.
         </p>
       </div>
 
@@ -16,9 +16,9 @@ export default function Home() {
           className="rounded-lg border border-line bg-card p-4 hover:border-accent"
         >
           <span className="text-2xl">🗡️</span>
-          <h2 className="mt-2 font-semibold text-accent">Running a round</h2>
+          <h2 className="mt-2 font-semibold text-accent">Du leitest eine Runde</h2>
           <p className="mt-1 text-sm text-muted">
-            Post your quest — name, vibe, and how many seats.
+            Trag ein, was du spielst — Titel, Stimmung, Plätze.
           </p>
         </Link>
 
@@ -27,9 +27,9 @@ export default function Home() {
           className="rounded-lg border border-line bg-card p-4 hover:border-accent"
         >
           <span className="text-2xl">🛡️</span>
-          <h2 className="mt-2 font-semibold text-accent">Joining as a player</h2>
+          <h2 className="mt-2 font-semibold text-accent">Du spielst mit</h2>
           <p className="mt-1 text-sm text-muted">
-            Rank the tables you&apos;d most want to sit at.
+            Sag zu jedem Tisch, wie sehr du willst.
           </p>
         </Link>
 
@@ -38,8 +38,8 @@ export default function Home() {
           className="rounded-lg border border-line bg-card p-4 hover:border-accent"
         >
           <span className="text-2xl">🏰</span>
-          <h2 className="mt-2 font-semibold text-accent">Innkeeper (admin)</h2>
-          <p className="mt-1 text-sm text-muted">Seat everyone and run the draw.</p>
+          <h2 className="mt-2 font-semibold text-accent">Wirt (Verwaltung)</h2>
+          <p className="mt-1 text-sm text-muted">Auslosen und alle an ihre Tische setzen.</p>
         </Link>
       </div>
     </div>
