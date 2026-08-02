@@ -88,6 +88,66 @@ export function protokollText(a: Auslosung, erzeugtAm = new Date()): string {
   return zeilen.join("\n");
 }
 
+/**
+ * Die **Einreichungen** als Text — der Stand VOR dem Auslosen.
+ *
+ * Zweck ist der Papier-Notausgang. Faellt der Server aus, nachdem alle
+ * eingereicht haben, sind sonst die Wuensche weg und man loste bei null an.
+ * Das Protokoll deckt nur die andere Haelfte ab, naemlich das Ergebnis.
+ *
+ * Enthaelt deshalb genug, um von Hand auszulosen: wer was will, wie viele
+ * Plaetze es gibt, und wie beliebt die Tische sind.
+ */
+export function einreichungenText(
+  runden: Round[],
+  spieler: PlayerEntry[],
+  erzeugtAm = new Date(),
+): string {
+  const plaetze = runden.reduce((s, r) => s + r.capacity, 0);
+  const eingereicht = spieler.filter((s) => s.submittedAt !== null).length;
+  const marke = (level: number) => LEVELS.find((l) => l.level === level)?.emoji ?? "?";
+
+  const zeilen: string[] = [
+    `Einreichungen, Stand ${erzeugtAm.toLocaleString("de-DE")}`,
+    "",
+    `${runden.length} Runden · ${plaetze} Plaetze · ${spieler.length} Spielende ` +
+      `(${eingereicht} haben eingereicht)`,
+    ...(plaetze < spieler.length
+      ? [`ACHTUNG Unterdeckung: ${spieler.length - plaetze} Spielende mehr als Plaetze.`]
+      : []),
+    "",
+    "Runden:",
+    ...runden.map((r) => `  [${r.id}] ${r.title} — Leitung ${r.dmName} — ${r.capacity} Plaetze`),
+    "",
+    "Wuensche:",
+  ];
+
+  for (const person of spieler) {
+    if (person.submittedAt === null) {
+      zeilen.push(`  ${person.playerName} — nichts eingereicht (gilt als: alles geht auch)`);
+      continue;
+    }
+    const abweichend = person.preferences
+      .filter((p) => p.level !== LEVEL_STANDARD)
+      .sort((a, b) => b.level - a.level)
+      .map((p) => `${marke(p.level)} [${p.roundId}]`);
+    zeilen.push(
+      `  ${person.playerName} — ${abweichend.length ? abweichend.join(" ") : "alles geht auch"}`,
+    );
+  }
+
+  zeilen.push("", "Beliebtheit je Runde:");
+  for (const r of runden) {
+    const zaehl = LEVELS.map(({ level, emoji }) => {
+      const n = spieler.filter((s) => levelVon(s, r.id) === level).length;
+      return n > 0 ? `${emoji} ${n}` : null;
+    }).filter(Boolean);
+    zeilen.push(`  [${r.id}] ${r.title}: ${zaehl.join(" · ")}`);
+  }
+
+  return zeilen.join("\n");
+}
+
 /** Level, das diese Person fuer diese Runde angegeben hat. Fehlt es, gilt der Standard. */
 export function levelVon(spieler: PlayerEntry, rundenId: number): number {
   return spieler.preferences.find((p) => p.roundId === rundenId)?.level ?? LEVEL_STANDARD;

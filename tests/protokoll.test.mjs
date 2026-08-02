@@ -1,0 +1,80 @@
+// Die beiden Texte, die den Papier-Notausgang tragen. Aufruf: npm test
+//
+// Geprueft wird, dass die Angaben drinstehen, die man braucht, um von Hand
+// auszulosen bzw. das Ergebnis auszuhaengen — nicht die genaue Formatierung.
+
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { einreichungenText, protokollText } from "../src/lib/protokoll.ts";
+
+const RUNDEN = [
+  { id: 1, dmName: "Mara", title: "Turm", vibe: "", capacity: 5, createdAt: 0 },
+  { id: 2, dmName: "Nils", title: "Sumpf", vibe: "", capacity: 5, createdAt: 0 },
+];
+
+const SPIELER = [
+  {
+    id: 1,
+    playerName: "Sarah",
+    preferences: [{ roundId: 1, level: 3 }],
+    submittedAt: 1,
+    createdAt: 0,
+  },
+  { id: 2, playerName: "Paul", preferences: [], submittedAt: null, createdAt: 0 },
+];
+
+test("Einreichungen: Wuensche, Runden und Nicht-Einreichende stehen drin", () => {
+  const t = einreichungenText(RUNDEN, SPIELER);
+  assert.match(t, /Sarah/);
+  assert.match(t, /Turm/);
+  // Der Fall, den man beim Auslosen von Hand am ehesten falsch macht.
+  assert.match(t, /Paul — nichts eingereicht \(gilt als: alles geht auch\)/);
+  assert.match(t, /Beliebtheit je Runde/);
+});
+
+test("Einreichungen: Unterdeckung wird gewarnt", () => {
+  const viele = Array.from({ length: 12 }, (_, i) => ({
+    id: i + 10,
+    playerName: `P${i}`,
+    preferences: [],
+    submittedAt: 1,
+    createdAt: 0,
+  }));
+  assert.match(einreichungenText(RUNDEN, viele), /ACHTUNG Unterdeckung: 2 /);
+});
+
+test("Protokoll: Ergebnis, Kennzahlen und Losreihenfolge stehen drin", () => {
+  const a = {
+    seed: "",
+    konfiguration: { verfahren: "rsd" },
+    eingabestand: { runden: RUNDEN, spieler: SPIELER },
+    losreihenfolge: [1, 2],
+    zuordnungen: [
+      { playerId: 1, roundId: 1, receivedLevel: 3 },
+      { playerId: 2, roundId: 2, receivedLevel: 1 },
+    ],
+  };
+  const t = protokollText(a);
+  assert.match(t, /Turm — Leitung Mara \(1\/5\)/);
+  assert.match(t, /- Sarah/);
+  assert.match(t, /Losreihenfolge/);
+  // Solange kein Seed existiert, soll das Protokoll das selbst sagen, statt
+  // Reproduzierbarkeit zu suggerieren.
+  assert.match(t, /nicht reproduzierbar/);
+});
+
+test("Protokoll: wer ohne Platz bleibt, wird eigens ausgewiesen", () => {
+  const a = {
+    seed: "",
+    konfiguration: {},
+    eingabestand: { runden: RUNDEN, spieler: SPIELER },
+    losreihenfolge: [1, 2],
+    zuordnungen: [
+      { playerId: 1, roundId: 1, receivedLevel: 3 },
+      { playerId: 2, roundId: null, receivedLevel: null },
+    ],
+  };
+  const t = protokollText(a);
+  assert.match(t, /Ohne Platz \(1\)/);
+  assert.match(t, /- Paul/);
+});

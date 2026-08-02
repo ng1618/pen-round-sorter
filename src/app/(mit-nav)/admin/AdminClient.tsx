@@ -3,7 +3,13 @@
 import { useEffect, useState } from "react";
 import Fehlerhinweis from "@/components/Fehlerhinweis";
 import { dataStore } from "@/lib/dataStore";
-import { kennzahlen as berechneKennzahlen, levelVon, type Auslosung, type Kennzahlen } from "@/lib/protokoll";
+import {
+  einreichungenText,
+  kennzahlen as berechneKennzahlen,
+  levelVon,
+  type Auslosung,
+  type Kennzahlen,
+} from "@/lib/protokoll";
 import { LEVELS, LEVEL_STANDARD, type Assignment, type PlayerEntry, type Round } from "@/lib/types";
 
 export default function AdminClient() {
@@ -132,10 +138,10 @@ Trotzdem festlegen?`)) {
     });
   }
 
-  function speichern(text: string) {
+  function speichern(text: string, praefix: string) {
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([text], { type: "text/plain" }));
-    a.download = `auslosung-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.txt`;
+    a.download = `${praefix}-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.txt`;
     a.click();
     // Erst spaeter freigeben: direkt nach dem Klick ist ein Wettlauf mit dem
     // Browser, der den Download noch anstossen muss. Ausgerechnet beim
@@ -143,8 +149,13 @@ Trotzdem festlegen?`)) {
     setTimeout(() => URL.revokeObjectURL(a.href), 10_000);
   }
 
+  /** Der Stand VOR dem Auslosen — Papier-Notausgang fuer die Wuensche. */
+  function handleEinreichungen() {
+    speichern(einreichungenText(rounds, entries), "einreichungen");
+  }
+
   function handleProtokoll() {
-    if (vorschau) speichern(vorschau.protokoll);
+    if (vorschau) speichern(vorschau.protokoll, "auslosung");
   }
 
   /** Protokoll des festgelegten Laufs — aus dessen eigenem Schnappschuss. */
@@ -156,7 +167,7 @@ Trotzdem festlegen?`)) {
       setFehler(text ?? `Protokoll konnte nicht geladen werden (${res.status}).`);
       return;
     }
-    speichern((await res.json()).protokoll);
+    speichern((await res.json()).protokoll, "auslosung");
   }
 
   async function handleDelete(id: number, name: string) {
@@ -284,6 +295,15 @@ Trotzdem festlegen?`)) {
       >
         {assignments || vorschau ? "Neu auslosen" : "Auslosen"}
       </button>
+
+      {entries.length > 0 && (
+        <button
+          onClick={handleEinreichungen}
+          className="w-fit rounded-md border border-line px-4 py-2 text-sm"
+        >
+          Einreichungen sichern
+        </button>
+      )}
 
       {vorschau && (
         <div className="rounded-md border-2 border-accent bg-card p-4">
