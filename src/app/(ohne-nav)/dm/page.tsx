@@ -11,7 +11,8 @@ export default function DmPage() {
   const [title, setTitle] = useState("");
   const [vibe, setVibe] = useState("");
   const [capacity, setCapacity] = useState(4);
-  const [submitted, setSubmitted] = useState(false);
+  /** Nach dem Absenden die eingetragene Runde — dient zugleich als Gegenlesen. */
+  const [eingetragen, setEingetragen] = useState<Round | null>(null);
   const [fehler, setFehler] = useState<string | null>(null);
 
   useEffect(() => {
@@ -26,8 +27,9 @@ export default function DmPage() {
     if (!dmName.trim() || !title.trim() || capacity < 1) return;
 
     setFehler(null);
+    let angelegt: Round;
     try {
-      await dataStore.addRound({
+      angelegt = await dataStore.addRound({
         dmName: dmName.trim(),
         title: title.trim(),
         vibe: vibe.trim(),
@@ -41,7 +43,48 @@ export default function DmPage() {
     setTitle("");
     setVibe("");
     setCapacity(4);
-    setSubmitted(true);
+    setEingetragen(angelegt);
+  }
+
+  /**
+   * Nach dem Absenden verschwindet das Formular, wie auf /rank. Es stehen zu
+   * lassen sah aus, als waere nichts passiert — und laedt dazu ein, dieselbe
+   * Runde ein zweites Mal einzutragen. Die Runde wird dabei angezeigt, weil
+   * Bearbeiten nicht vorgesehen ist: Gegenlesen ist das Einzige, was gegen
+   * einen Tippfehler hilft.
+   */
+  if (eingetragen) {
+    return (
+      <div className="flex flex-col gap-6">
+        <div>
+          <h1 className="text-2xl font-bold">🗡️ Eingetragen</h1>
+          <p className="mt-2 text-muted">
+            Deine Runde steht. Die Mitspielenden sehen sie ab sofort auf ihrer
+            Wunschliste.
+          </p>
+        </div>
+
+        <div className="rounded-md border border-accent/40 bg-card p-4 text-sm">
+          <p className="font-medium">{eingetragen.title}</p>
+          <p className="mt-1 text-muted">
+            Leitung {eingetragen.dmName} · {eingetragen.capacity} Plätze
+          </p>
+          {eingetragen.vibe && <p className="mt-2 text-muted">{eingetragen.vibe}</p>}
+        </div>
+
+        <p className="text-sm text-muted">
+          Stimmt etwas nicht? Ändern geht hier nicht — sag dem Wirt Bescheid,
+          bevor ausgelost wird.
+        </p>
+
+        <button
+          className="w-fit rounded-md border border-line bg-card px-4 py-2 text-sm"
+          onClick={() => setEingetragen(null)}
+        >
+          Noch eine Runde eintragen
+        </button>
+      </div>
+    );
   }
 
   return (
@@ -107,9 +150,6 @@ export default function DmPage() {
           Runde eintragen
         </button>
 
-        {submitted && (
-          <p className="text-sm text-green-700">Runde eingetragen. Du kannst gleich noch eine anlegen.</p>
-        )}
       </form>
 
       <div>
