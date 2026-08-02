@@ -58,21 +58,141 @@ function zufallsToken(): string {
 }
 
 /**
- * Ein Event, implizit. Mehrere Events parallel stehen in Abschnitt 16 des
- * Arbeitsdokuments bewusst als "nicht bis zum Event" — bis dahin ist "das
- * aktuelle Event" das neueste, und wenn es keines gibt, wird eines angelegt.
+ * Das aktuelle Wochenende — das neueste. Gibt es keines, wird eins mit einem
+ * einzigen Tag angelegt, damit die App auch ohne Einrichtung laeuft.
  */
-export function aktuellesEventId(db: Database.Database = getDb()): number {
-  const vorhanden = db
-    .prepare("SELECT id FROM event ORDER BY id DESC LIMIT 1")
-    .get() as EventZeile | undefined;
+export function aktuellesWochenendeId(db: Database.Database = getDb()): number {
+  const vorhanden = db.prepare("SELECT id FROM wochenende ORDER BY id DESC LIMIT 1").get() as
+    | { id: number }
+    | undefined;
   if (vorhanden) return vorhanden.id;
 
   return Number(
     db
-      .prepare("INSERT INTO event (name, dm_token, spieler_token) VALUES (?, ?, ?)")
+      .prepare("INSERT INTO wochenende (name, tage, dm_token, spieler_token) VALUES (?, 1, ?, ?)")
       .run("Spieleabend", zufallsToken(), zufallsToken()).lastInsertRowid,
   );
+}
+
+/**
+ * Einen Spieltag anlegen.
+ *
+ * ⚠️ `event.dm_token` und `event.spieler_token` sind seit Migrationsschritt 4
+ * **tot** — massgeblich sind die Tokens am Wochenende, weil die QR-Codes einmal
+ * fuer alle Tage gedruckt werden. Die Spalten stehen aber noch auf `NOT NULL`
+ * und lassen sich nicht einfach loeschen: sie haengen an einem UNIQUE-Index, und
+ * ein Tabellenumbau verlangt `PRAGMA foreign_keys = OFF` ausserhalb der
+ * Transaktion. Sie sind zusaetzlich UNIQUE, also bekommen sie hier **frischen
+ * Zufall ohne Bedeutung** — nicht die Wochenend-Tokens, sonst waere Tag 2 ein
+ * Duplikat. Wer diese Spalten liest, liest Muell; gemeint sind die am
+ * Wochenende.
+ *
+ * Aufraeumen, wenn ohnehin ein Tabellenumbau ansteht. Steht in TODO.md.
+ */
+function eventAnlegen(
+  db: Database.Database,
+  name: string,
+  wochenendeId: number,
+  tag: number,
+): number {
+  return Number(
+    db
+      .prepare(
+        "INSERT INTO event (name, wochenende_id, tag, dm_token, spieler_token) VALUES (?, ?, ?, ?, ?)",
+      )
+      .run(name, wochenendeId, tag, zufallsToken(), zufallsToken()).lastInsertRowid,
+  );
+}
+
+/** Wochenende anlegen und gleich Tag 1 dazu. Passwort setzt `auth.ts`. */
+export function wochenendeAnlegen(
+  name: string,
+  tage: number,
+  db: Database.Database = getDb(),
+): number {
+  const anlegen = db.transaction(() => {
+    const id = Number(
+      db
+        .prepare("INSERT INTO wochenende (name, tage, dm_token, spieler_token) VALUES (?, ?, ?, ?)")
+        .run(name, tage, zufallsToken(), zufallsToken()).lastInsertRowid,
+    );
+    eventAnlegen(db, `${name} — Tag 1`, id, 1);
+    return id;
+  });
+  return anlegen();
+}
+
+/** Name und Tagesanzahl aendern. Weniger Tage als schon angelegt geht nicht. */
+export function wochenendeAktualisieren(
+  name: string,
+  tage: number,
+  db: Database.Database = getDb(),
+): { ok: true } | { ok: false; fehler: string } {
+  const w = aktuellesWochenendeId(db);
+  const angelegt = (
+    db.prepare("SELECT count(*) AS n FROM event WHERE wochenende_id = ?").get(w) as { n: number }
+  ).n;
+  if (tage < angelegt) {
+    return { ok: false, fehler: `Es sind schon ${angelegt} Tage angelegt.` };
+  }
+  db.prepare("UPDATE wochenende SET name = ?, tage = ? WHERE id = ?").run(name, tage, w);
+  return { ok: true };
+}
+
+export type TagInfo = { name: string; tag: number; tage: number };
+
+export function tagInfo(db: Database.Database = getDb()): TagInfo {
+  const w = aktuellesWochenendeId(db);
+  const zeile = db
+    .prepare(
+      "SELECT w.name, w.tage, e.tag FROM event e JOIN wochenende w ON w.id = e.wochenende_id " +
+        "WHERE e.wochenende_id = ? ORDER BY e.tag DESC LIMIT 1",
+    )
+    .get(w) as TagInfo | undefined;
+  if (zeile) return zeile;
+
+  const nur = db.prepare("SELECT name, tage FROM wochenende WHERE id = ?").get(w) as {
+    name: string;
+    tage: number;
+  };
+  return { name: nur.name, tag: 1, tage: nur.tage };
+}
+
+/**
+ * Naechsten Spieltag anlegen. Passwort und Tokens bleiben, wo sie hingehoeren —
+ * am Wochenende —, also gibt es hier nichts zu vererben.
+ */
+export function neuerTag(db: Database.Database = getDb()): { ok: true; tag: number } | { ok: false; fehler: string } {
+  const w = aktuellesWochenendeId(db);
+  const { name, tage } = db.prepare("SELECT name, tage FROM wochenende WHERE id = ?").get(w) as {
+    name: string;
+    tage: number;
+  };
+  const bisher = (
+    db.prepare("SELECT count(*) AS n FROM event WHERE wochenende_id = ?").get(w) as { n: number }
+  ).n;
+
+  if (bisher >= tage) {
+    return { ok: false, fehler: `Dieses Wochenende hat ${tage} Tage, mehr sind nicht geplant.` };
+  }
+
+  const tag = bisher + 1;
+  eventAnlegen(db, `${name} — Tag ${tag}`, w, tag);
+  return { ok: true, tag };
+}
+
+/**
+ * Der aktuelle Spieltag: der hoechste Tag des aktuellen Wochenendes. Gibt es
+ * noch keinen, wird Tag 1 angelegt.
+ */
+export function aktuellesEventId(db: Database.Database = getDb()): number {
+  const w = aktuellesWochenendeId(db);
+  const vorhanden = db
+    .prepare("SELECT id FROM event WHERE wochenende_id = ? ORDER BY tag DESC, id DESC LIMIT 1")
+    .get(w) as EventZeile | undefined;
+  if (vorhanden) return vorhanden.id;
+
+  return eventAnlegen(db, "Tag 1", w, 1);
 }
 
 export function listRounds(db: Database.Database = getDb()): Round[] {
@@ -254,10 +374,11 @@ export function addSpielerOhneEinreichung(
 export function adminPasswort(
   db: Database.Database = getDb(),
 ): { hash: string; salt: string } | null {
-  const eventId = aktuellesEventId(db);
   const zeile = db
-    .prepare("SELECT admin_passwort_hash AS hash, admin_passwort_salt AS salt FROM event WHERE id = ?")
-    .get(eventId) as { hash: string | null; salt: string | null };
+    .prepare(
+      "SELECT admin_passwort_hash AS hash, admin_passwort_salt AS salt FROM wochenende WHERE id = ?",
+    )
+    .get(aktuellesWochenendeId(db)) as { hash: string | null; salt: string | null };
   if (!zeile?.hash || !zeile.salt) return null;
   return { hash: zeile.hash, salt: zeile.salt };
 }
@@ -265,14 +386,14 @@ export function adminPasswort(
 /** Zaehler, der in die Sitzungssignatur eingeht. Hochzaehlen = alles abmelden. */
 export function sitzungsVersion(db: Database.Database = getDb()): number {
   const zeile = db
-    .prepare("SELECT sitzungs_version AS v FROM event WHERE id = ?")
-    .get(aktuellesEventId(db)) as { v: number };
+    .prepare("SELECT sitzungs_version AS v FROM wochenende WHERE id = ?")
+    .get(aktuellesWochenendeId(db)) as { v: number };
   return zeile?.v ?? 0;
 }
 
 export function sitzungsVersionErhoehen(db: Database.Database = getDb()): void {
-  db.prepare("UPDATE event SET sitzungs_version = sitzungs_version + 1 WHERE id = ?").run(
-    aktuellesEventId(db),
+  db.prepare("UPDATE wochenende SET sitzungs_version = sitzungs_version + 1 WHERE id = ?").run(
+    aktuellesWochenendeId(db),
   );
 }
 
@@ -281,11 +402,9 @@ export function setAdminPasswort(
   salt: string,
   db: Database.Database = getDb(),
 ): void {
-  db.prepare("UPDATE event SET admin_passwort_hash = ?, admin_passwort_salt = ? WHERE id = ?").run(
-    hash,
-    salt,
-    aktuellesEventId(db),
-  );
+  db.prepare(
+    "UPDATE wochenende SET admin_passwort_hash = ?, admin_passwort_salt = ? WHERE id = ?",
+  ).run(hash, salt, aktuellesWochenendeId(db));
 }
 
 /**

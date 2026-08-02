@@ -119,6 +119,64 @@ const MIGRATIONS: Array<(db: Database.Database) => void> = [
   // Zahl geht in die Signatur ein; hochzaehlen entwertet alles Bisherige.
   (db) =>
     db.exec("ALTER TABLE event ADD COLUMN sitzungs_version INTEGER NOT NULL DEFAULT 0"),
+
+  // Schritt 4 (02.08.): das Wochenende als eigene Ebene.
+  //
+  // Ein Event ist ein Spieltag; mehrere ergeben ein Wochenende. Passwort und
+  // Tokens wandern dorthin, weil sie dem Wochenende gehoeren und nicht dem Tag:
+  // ein Passwort fuer den Wirt, ein Satz Links, die **einmal** als QR gedruckt
+  // werden. Blieben sie am Tag, aenderten sich die Links jeden Morgen und die
+  // gedruckten Codes waeren ab Samstag falsch.
+  //
+  // `tage` steht am Wochenende, damit "Tag 1 von 3" schon am Freitag stimmt —
+  // Samstag und Sonntag gibt es zu dem Zeitpunkt ja noch nicht.
+  (db) => {
+    db.exec(`
+      CREATE TABLE wochenende (
+        id                  INTEGER PRIMARY KEY,
+        name                TEXT NOT NULL,
+        tage                INTEGER NOT NULL CHECK (tage BETWEEN 1 AND 7),
+        admin_passwort_hash TEXT,
+        admin_passwort_salt TEXT,
+        dm_token            TEXT NOT NULL,
+        spieler_token       TEXT NOT NULL,
+        sitzungs_version    INTEGER NOT NULL DEFAULT 0,
+        erstellt_am         TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+      );
+      ALTER TABLE event ADD COLUMN wochenende_id INTEGER REFERENCES wochenende(id);
+      ALTER TABLE event ADD COLUMN tag INTEGER NOT NULL DEFAULT 1;
+    `);
+
+    // Bestehende Events uebernehmen: je Event ein Wochenende mit einem Tag,
+    // Passwort und Tokens wandern mit. Ohne das stuende eine laufende
+    // Installation nach der Migration ohne Zugang da.
+    const events = db
+      .prepare("SELECT id, name, admin_passwort_hash, admin_passwort_salt, dm_token, spieler_token FROM event")
+      .all() as Array<{
+      id: number;
+      name: string;
+      admin_passwort_hash: string | null;
+      admin_passwort_salt: string | null;
+      dm_token: string;
+      spieler_token: string;
+    }>;
+
+    const anlegen = db.prepare(
+      "INSERT INTO wochenende (name, tage, admin_passwort_hash, admin_passwort_salt, dm_token, spieler_token) " +
+        "VALUES (?, 1, ?, ?, ?, ?)",
+    );
+    const verknuepfen = db.prepare("UPDATE event SET wochenende_id = ?, tag = 1 WHERE id = ?");
+    for (const e of events) {
+      const id = anlegen.run(
+        e.name,
+        e.admin_passwort_hash,
+        e.admin_passwort_salt,
+        e.dm_token,
+        e.spieler_token,
+      ).lastInsertRowid;
+      verknuepfen.run(id, e.id);
+    }
+  },
 ];
 
 function migrate(db: Database.Database): void {

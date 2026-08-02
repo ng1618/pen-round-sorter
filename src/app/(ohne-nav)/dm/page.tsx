@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Fehlerhinweis from "@/components/Fehlerhinweis";
+import Tagesanzeige from "@/components/Tagesanzeige";
 import { dataStore } from "@/lib/dataStore";
 import type { Round } from "@/lib/types";
 
@@ -92,6 +93,7 @@ export default function DmPage() {
   return (
     <div className="flex flex-col gap-8">
       <div>
+        <Tagesanzeige />
         <h1 className="text-2xl font-bold">🗡️ Runde eintragen</h1>
         <p className="mt-2 text-muted">
           Sag den Mitspielenden, was du leitest und wie viele Plätze frei sind.

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Fehlerhinweis from "@/components/Fehlerhinweis";
+import Tagesanzeige from "@/components/Tagesanzeige";
 import { dataStore } from "@/lib/dataStore";
 import {
   einreichungenText,
@@ -205,6 +206,35 @@ Trotzdem festlegen?`)) {
     await refresh();
   }
 
+  /** Wochenende benennen und die geplante Tagesanzahl setzen. */
+  async function handleWochenende(name: string, tage: number) {
+    setFehler(null);
+    const res = await fetch("/api/wochenende", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, tage }),
+    });
+    if (!res.ok) {
+      const { fehler: text } = await res.json().catch(() => ({}));
+      setFehler(text ?? `Wochenende konnte nicht gespeichert werden (${res.status}).`);
+      return;
+    }
+    window.location.reload();
+  }
+
+  /** Naechster Spieltag. Runden und Einreichungen fangen dort bei null an. */
+  async function handleNeuerTag() {
+    if (!confirm("Neuen Spieltag anlegen? Runden und Einreichungen beginnen dort von vorn.")) return;
+    setFehler(null);
+    const res = await fetch("/api/wochenende/tag", { method: "POST" });
+    if (!res.ok) {
+      const { fehler: text } = await res.json().catch(() => ({}));
+      setFehler(text ?? `Tag konnte nicht angelegt werden (${res.status}).`);
+      return;
+    }
+    window.location.reload();
+  }
+
   async function handleLogout() {
     await fetch("/api/admin/session", { method: "DELETE" });
     window.location.reload();
@@ -259,6 +289,7 @@ Trotzdem festlegen?`)) {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">🏰 Verwaltung</h1>
+          <Tagesanzeige />
           <p className="mt-2 text-muted">
             {rounds.length} Runden · {capacity} Plätze · {entries.length} Spielende
             {" "}({submittedCount} haben eingereicht)
@@ -495,6 +526,42 @@ Trotzdem festlegen?`)) {
           </div>
         </div>
       )}
+
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          const daten = new FormData(e.currentTarget);
+          handleWochenende(String(daten.get("name") ?? ""), Number(daten.get("tage")));
+        }}
+        className="flex flex-wrap items-end gap-3 rounded-md border border-line bg-card p-3 text-sm"
+      >
+        <label className="flex flex-col gap-1">
+          Wochenende
+          <input
+            name="name"
+            defaultValue=""
+            placeholder="z. B. Novemberwochenende"
+            className="rounded-md border border-line bg-card px-2 py-1"
+          />
+        </label>
+        <label className="flex flex-col gap-1">
+          Tage
+          <input
+            name="tage"
+            type="number"
+            min={1}
+            max={7}
+            defaultValue={1}
+            className="w-16 rounded-md border border-line bg-card px-2 py-1"
+          />
+        </label>
+        <button type="submit" className="rounded-md border border-line px-3 py-1.5">
+          Speichern
+        </button>
+        <button type="button" onClick={handleNeuerTag} className="rounded-md border border-line px-3 py-1.5">
+          Neuer Spieltag
+        </button>
+      </form>
 
       <div className="grid gap-6 sm:grid-cols-2">
         <div>

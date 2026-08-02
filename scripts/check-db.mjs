@@ -62,7 +62,7 @@ pruefe("Pragmas stehen richtig", () => {
   const version = db.pragma("user_version", { simple: true });
   if (journal !== "wal") throw new Error(`journal_mode ist ${journal}`);
   if (fk !== 1) throw new Error("foreign_keys ist aus");
-  if (version !== 3) throw new Error(`user_version ist ${version}`);
+  if (version !== 4) throw new Error(`user_version ist ${version}`);
   return `journal_mode=${journal}, foreign_keys=${fk}, user_version=${version}`;
 });
 

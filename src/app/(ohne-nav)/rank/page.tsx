@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Fehlerhinweis from "@/components/Fehlerhinweis";
+import Tagesanzeige from "@/components/Tagesanzeige";
 import { dataStore } from "@/lib/dataStore";
 import { LEVELS, LEVEL_STANDARD, LEVEL_TOP, type Level, type Round } from "@/lib/types";
 
@@ -75,6 +76,7 @@ export default function RankPage() {
   return (
     <div className="flex flex-col gap-8">
       <div>
+        <Tagesanzeige />
         <h1 className="text-2xl font-bold">🛡️ Such dir deinen Tisch</h1>
         <p className="mt-2 text-muted">
           Sag zu jedem Tisch, wie sehr du willst. Alles, was du nicht anfasst,
