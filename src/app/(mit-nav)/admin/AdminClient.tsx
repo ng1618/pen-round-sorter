@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Fehlerhinweis from "@/components/Fehlerhinweis";
 import { dataStore } from "@/lib/dataStore";
-import type { Auslosung, Kennzahlen } from "@/lib/protokoll";
+import { kennzahlen as berechneKennzahlen, levelVon, type Auslosung, type Kennzahlen } from "@/lib/protokoll";
 import { LEVELS, LEVEL_STANDARD, type Assignment, type PlayerEntry, type Round } from "@/lib/types";
 
 export default function AdminClient() {
@@ -79,6 +79,59 @@ Trotzdem festlegen?`)) {
     await refresh();
   }
 
+  /** Den festgelegten Lauf zum Bearbeiten laden. Ergebnis wird ein neuer Lauf. */
+  async function handleKorrigieren() {
+    setFehler(null);
+    const res = await fetch("/api/matching/aktuell");
+    if (!res.ok) {
+      const { fehler: text } = await res.json().catch(() => ({}));
+      setFehler(text ?? `Ergebnis konnte nicht geladen werden (${res.status}).`);
+      return;
+    }
+    setVorschau(await res.json());
+  }
+
+  /**
+   * Jemanden umsetzen. Das erhaltene Level wird dabei aus der Angabe der Person
+   * neu berechnet — sonst saehe eine Handkorrektur in der Statistik besser aus
+   * als sie war. `commit` rechnet es serverseitig ohnehin nach.
+   */
+  function handleUmsetzen(playerId: number, roundId: number | null) {
+    setVorschau((v) => {
+      if (!v) return v;
+      const person = v.auslosung.eingabestand.spieler.find((p) => p.id === playerId);
+      if (!person) return v;
+
+      if (roundId != null) {
+        const runde = v.auslosung.eingabestand.runden.find((r) => r.id === roundId);
+        const belegt = v.auslosung.zuordnungen.filter((z) => z.roundId === roundId).length;
+        if (runde && belegt >= runde.capacity) {
+          setFehler(
+            `„${runde.title}" ist mit ${belegt} von ${runde.capacity} voll. ` +
+              `Erst die Platzzahl erhöhen, dann umsetzen.`,
+          );
+          return v;
+        }
+      }
+
+      const auslosung: Auslosung = {
+        ...v.auslosung,
+        konfiguration: { ...v.auslosung.konfiguration, manuellKorrigiert: true },
+        zuordnungen: v.auslosung.zuordnungen.map((z) =>
+          z.playerId === playerId
+            ? {
+                ...z,
+                roundId,
+                receivedLevel: roundId == null ? null : (levelVon(person, roundId) as never),
+              }
+            : z,
+        ),
+      };
+      setFehler(null);
+      return { ...v, auslosung, kennzahlen: berechneKennzahlen(auslosung) };
+    });
+  }
+
   function handleProtokoll() {
     if (!vorschau) return;
     const a = document.createElement("a");
@@ -100,6 +153,26 @@ Trotzdem festlegen?`)) {
       );
       return;
     }
+    await refresh();
+  }
+
+  /**
+   * Platzzahl anpassen. Aendert sich die Kapazitaet, passt ein bereits
+   * festgelegter Lauf nicht mehr dazu — deshalb der Hinweis, neu auszulosen.
+   */
+  async function handlePlaetze(id: number, plaetze: number) {
+    setFehler(null);
+    const res = await fetch(`/api/rounds/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ plaetze }),
+    });
+    if (!res.ok) {
+      const { fehler: text } = await res.json().catch(() => ({}));
+      setFehler(text ?? `Platzzahl konnte nicht geändert werden (${res.status}).`);
+      return;
+    }
+    setVorschau(null);
     await refresh();
   }
 
@@ -190,6 +263,15 @@ Trotzdem festlegen?`)) {
         {vorschau ? "Neu auslosen" : "Auslosen"}
       </button>
 
+      {assignments && !vorschau && (
+        <button
+          onClick={handleKorrigieren}
+          className="w-fit rounded-md border border-line px-4 py-2 text-sm"
+        >
+          Ergebnis von Hand ändern
+        </button>
+      )}
+
       {vorschau && (
         <div className="rounded-md border-2 border-accent bg-card p-4">
           <p className="font-medium text-accent">Vorschau — noch nicht festgelegt</p>
@@ -217,19 +299,69 @@ Trotzdem festlegen?`)) {
                   <p className="font-medium">
                     {runde.title} — Leitung {runde.dmName} ({sitzend.length}/{runde.capacity})
                   </p>
-                  <p className="mt-1 text-muted">
-                    {sitzend
-                      .map(
-                        (z) =>
-                          vorschau.auslosung.eingabestand.spieler.find((p) => p.id === z.playerId)
-                            ?.playerName ?? "?",
-                      )
-                      .join(", ")}
-                  </p>
+                  <ul className="mt-2 flex flex-col gap-1">
+                    {sitzend.map((z) => (
+                      <li key={z.playerId} className="flex items-center justify-between gap-2">
+                        <span className="text-muted">
+                          {vorschau.auslosung.eingabestand.spieler.find((p) => p.id === z.playerId)
+                            ?.playerName ?? "?"}
+                        </span>
+                        <select
+                          value={z.roundId ?? ""}
+                          onChange={(e) =>
+                            handleUmsetzen(z.playerId, e.target.value === "" ? null : Number(e.target.value))
+                          }
+                          aria-label="Umsetzen"
+                          className="rounded-md border border-line bg-card px-2 py-1 text-xs"
+                        >
+                          {vorschau.auslosung.eingabestand.runden.map((r) => (
+                            <option key={r.id} value={r.id}>
+                              {r.title}
+                            </option>
+                          ))}
+                          <option value="">ohne Platz</option>
+                        </select>
+                      </li>
+                    ))}
+                    {sitzend.length === 0 && <li className="italic text-muted">leer</li>}
+                  </ul>
                 </div>
               );
             })}
           </div>
+
+          {vorschau.auslosung.zuordnungen.some((z) => z.roundId == null) && (
+            <div className="mt-3 rounded-md border border-red-700/40 p-3 text-sm">
+              <p className="font-medium">Ohne Platz</p>
+              <ul className="mt-2 flex flex-col gap-1">
+                {vorschau.auslosung.zuordnungen
+                  .filter((z) => z.roundId == null)
+                  .map((z) => (
+                    <li key={z.playerId} className="flex items-center justify-between gap-2">
+                      <span className="text-muted">
+                        {vorschau.auslosung.eingabestand.spieler.find((p) => p.id === z.playerId)
+                          ?.playerName ?? "?"}
+                      </span>
+                      <select
+                        value=""
+                        onChange={(e) =>
+                          e.target.value !== "" && handleUmsetzen(z.playerId, Number(e.target.value))
+                        }
+                        aria-label="Einsetzen"
+                        className="rounded-md border border-line bg-card px-2 py-1 text-xs"
+                      >
+                        <option value="">ohne Platz</option>
+                        {vorschau.auslosung.eingabestand.runden.map((r) => (
+                          <option key={r.id} value={r.id}>
+                            {r.title}
+                          </option>
+                        ))}
+                      </select>
+                    </li>
+                  ))}
+              </ul>
+            </div>
+          )}
 
           <div className="mt-4 flex flex-wrap gap-2">
             <button
@@ -309,10 +441,32 @@ Trotzdem festlegen?`)) {
       <div className="grid gap-6 sm:grid-cols-2">
         <div>
           <h2 className="text-sm font-semibold text-accent">Runden</h2>
+          {assignments && (
+            <p className="mt-1 text-xs text-muted">
+              Wird die Platzzahl geändert, passt das festgelegte Ergebnis nicht
+              mehr dazu — dann neu auslosen.
+            </p>
+          )}
           <ul className="mt-2 flex flex-col gap-2">
             {rounds.map((r) => (
               <li key={r.id} className="rounded-md border border-line bg-card p-3 text-sm">
-                {r.title} — Leitung {r.dmName} — {r.capacity} Plätze
+                <div>
+                  {r.title} — Leitung {r.dmName}
+                </div>
+                <label className="mt-2 flex items-center gap-2 text-muted">
+                  Plätze
+                  <input
+                    type="number"
+                    min={1}
+                    max={20}
+                    defaultValue={r.capacity}
+                    onBlur={(e) => {
+                      const wert = Number(e.target.value);
+                      if (wert !== r.capacity) handlePlaetze(r.id, wert);
+                    }}
+                    className="w-16 rounded-md border border-line bg-card px-2 py-1"
+                  />
+                </label>
               </li>
             ))}
             {rounds.length === 0 && <li className="text-sm text-muted">Noch nichts.</li>}

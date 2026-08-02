@@ -10,7 +10,9 @@ export default function DmPage() {
   const [dmName, setDmName] = useState("");
   const [title, setTitle] = useState("");
   const [vibe, setVibe] = useState("");
-  const [capacity, setCapacity] = useState(4);
+  // 5 ist der Plan (3 Tische a 5 = 15 Plaetze fuer 15 Spielende). Mit 4 als
+  // Vorgabe entstand Unterdeckung durch blosses Nichtstun.
+  const [capacity, setCapacity] = useState(5);
   /** Nach dem Absenden die eingetragene Runde — dient zugleich als Gegenlesen. */
   const [eingetragen, setEingetragen] = useState<Round | null>(null);
   const [fehler, setFehler] = useState<string | null>(null);
@@ -42,7 +44,7 @@ export default function DmPage() {
     }
     setTitle("");
     setVibe("");
-    setCapacity(4);
+    setCapacity(5);
     setEingetragen(angelegt);
   }
 

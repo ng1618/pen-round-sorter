@@ -114,6 +114,24 @@ export function addRound(
   return { ...eingabe, id, createdAt: nachMillisekunden(erstelltAm) };
 }
 
+/**
+ * Platzzahl einer Runde aendern — Sache des Wirts, nicht des DM: die Zahl ist
+ * keine Angabe ueber das Spiel, sondern eine Beobachtung ueber den Raum
+ * (wer da ist, wie viele Stuehle passen). Deshalb kollidiert es auch nicht mit
+ * "keine nachtraegliche Umbesetzung", das Besetzung und Inhalt betraf.
+ */
+export function setRundenPlaetze(
+  id: number,
+  plaetze: number,
+  db: Database.Database = getDb(),
+): boolean {
+  return (
+    db
+      .prepare("UPDATE runde SET plaetze = ? WHERE id = ? AND event_id = ?")
+      .run(plaetze, id, aktuellesEventId(db)).changes > 0
+  );
+}
+
 export function listEntries(db: Database.Database = getDb()): PlayerEntry[] {
   const eventId = aktuellesEventId(db);
   const spieler = db
@@ -328,6 +346,33 @@ export function commitLauf(eingabe: LaufEingabe, db: Database.Database = getDb()
   });
 
   return schreiben();
+}
+
+/**
+ * Der neueste Lauf **vollstaendig**, inklusive seines Schnappschusses — die
+ * Grundlage fuer eine Handkorrektur: die wird als *neuer* Lauf festgelegt, nicht
+ * als Aenderung am bestehenden, damit ein gespeicherter Lauf weiterhin das ist,
+ * was damals herauskam.
+ */
+export function neuesterLaufVoll(db: Database.Database = getDb()) {
+  const eventId = aktuellesEventId(db);
+  const lauf = db
+    .prepare(
+      "SELECT id, seed, konfiguration, eingabestand, losreihenfolge FROM matching_lauf " +
+        "WHERE event_id = ? ORDER BY erzeugt_am DESC, id DESC LIMIT 1",
+    )
+    .get(eventId) as
+    | { id: number; seed: string; konfiguration: string; eingabestand: string; losreihenfolge: string }
+    | undefined;
+  if (!lauf) return null;
+
+  return {
+    seed: lauf.seed,
+    konfiguration: JSON.parse(lauf.konfiguration) as Record<string, unknown>,
+    eingabestand: JSON.parse(lauf.eingabestand) as { runden: Round[]; spieler: PlayerEntry[] },
+    losreihenfolge: JSON.parse(lauf.losreihenfolge) as number[],
+    zuordnungen: neuesteZuordnungen(db) ?? [],
+  };
 }
 
 /** Der neueste festgelegte Lauf. `null`, wenn noch keiner festgelegt wurde. */
