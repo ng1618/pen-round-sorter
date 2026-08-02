@@ -132,16 +132,31 @@ Trotzdem festlegen?`)) {
     });
   }
 
-  function handleProtokoll() {
-    if (!vorschau) return;
+  function speichern(text: string) {
     const a = document.createElement("a");
-    a.href = URL.createObjectURL(new Blob([vorschau.protokoll], { type: "text/plain" }));
+    a.href = URL.createObjectURL(new Blob([text], { type: "text/plain" }));
     a.download = `auslosung-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.txt`;
     a.click();
     // Erst spaeter freigeben: direkt nach dem Klick ist ein Wettlauf mit dem
     // Browser, der den Download noch anstossen muss. Ausgerechnet beim
     // Papier-Notausgang will man den nicht.
     setTimeout(() => URL.revokeObjectURL(a.href), 10_000);
+  }
+
+  function handleProtokoll() {
+    if (vorschau) speichern(vorschau.protokoll);
+  }
+
+  /** Protokoll des festgelegten Laufs — aus dessen eigenem Schnappschuss. */
+  async function handleProtokollFestgelegt() {
+    setFehler(null);
+    const res = await fetch("/api/matching/protokoll");
+    if (!res.ok) {
+      const { fehler: text } = await res.json().catch(() => ({}));
+      setFehler(text ?? `Protokoll konnte nicht geladen werden (${res.status}).`);
+      return;
+    }
+    speichern((await res.json()).protokoll);
   }
 
   async function handleDelete(id: number, name: string) {
@@ -261,19 +276,14 @@ Trotzdem festlegen?`)) {
       <button
         onClick={handleAuslosen}
         disabled={rounds.length === 0 || entries.length === 0}
-        className="w-fit rounded-md bg-accent px-4 py-2 font-medium text-white disabled:opacity-40"
+        className={
+          assignments && !vorschau
+            ? "w-fit rounded-md border border-line px-4 py-2 text-sm disabled:opacity-40"
+            : "w-fit rounded-md bg-accent px-4 py-2 font-medium text-white disabled:opacity-40"
+        }
       >
-        {vorschau ? "Neu auslosen" : "Auslosen"}
+        {assignments || vorschau ? "Neu auslosen" : "Auslosen"}
       </button>
-
-      {assignments && !vorschau && (
-        <button
-          onClick={handleKorrigieren}
-          className="w-fit rounded-md border border-line px-4 py-2 text-sm"
-        >
-          Ergebnis von Hand ändern
-        </button>
-      )}
 
       {vorschau && (
         <div className="rounded-md border-2 border-accent bg-card p-4">
@@ -396,7 +406,27 @@ Trotzdem festlegen?`)) {
 
       {assignments && (
         <div>
-          <h2 className="text-lg font-semibold text-accent">Ergebnis</h2>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-lg font-semibold text-accent">Ergebnis — festgelegt</h2>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={handleProtokollFestgelegt}
+                className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white"
+              >
+                Protokoll herunterladen
+              </button>
+              <button
+                onClick={handleKorrigieren}
+                className="rounded-md border border-line px-4 py-2 text-sm"
+              >
+                Von Hand ändern
+              </button>
+            </div>
+          </div>
+          <p className="mt-1 text-xs text-muted">
+            Das gilt. &bdquo;Neu auslosen&ldquo; oben erzeugt ein anderes Ergebnis und ersetzt
+            dieses.
+          </p>
 
           <div className="mt-3 rounded-md border border-accent/40 bg-card p-3 text-sm">
             <p className="font-medium">Wie gut ist es aufgegangen</p>
