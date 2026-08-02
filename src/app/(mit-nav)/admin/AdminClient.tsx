@@ -138,7 +138,10 @@ Trotzdem festlegen?`)) {
     a.href = URL.createObjectURL(new Blob([vorschau.protokoll], { type: "text/plain" }));
     a.download = `auslosung-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.txt`;
     a.click();
-    URL.revokeObjectURL(a.href);
+    // Erst spaeter freigeben: direkt nach dem Klick ist ein Wettlauf mit dem
+    // Browser, der den Download noch anstossen muss. Ausgerechnet beim
+    // Papier-Notausgang will man den nicht.
+    setTimeout(() => URL.revokeObjectURL(a.href), 10_000);
   }
 
   async function handleDelete(id: number, name: string) {
@@ -291,6 +294,30 @@ Trotzdem festlegen?`)) {
             )}
           </ul>
 
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button
+              onClick={() => handleFestlegen()}
+              className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white"
+            >
+              Festlegen
+            </button>
+            <button
+              onClick={handleProtokoll}
+              className="rounded-md border border-line px-4 py-2 text-sm"
+            >
+              Protokoll herunterladen
+            </button>
+            <button
+              onClick={() => setVorschau(null)}
+              className="rounded-md border border-line px-4 py-2 text-sm text-muted"
+            >
+              Verwerfen
+            </button>
+          </div>
+
+          <p className="mt-4 text-xs text-muted">
+            Darunter zum Gegenlesen — und zum Umsetzen einzelner Personen.
+          </p>
           <div className="mt-4 flex flex-col gap-3">
             {vorschau.auslosung.eingabestand.runden.map((runde) => {
               const sitzend = vorschau.auslosung.zuordnungen.filter((z) => z.roundId === runde.id);
@@ -363,26 +390,7 @@ Trotzdem festlegen?`)) {
             </div>
           )}
 
-          <div className="mt-4 flex flex-wrap gap-2">
-            <button
-              onClick={() => handleFestlegen()}
-              className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white"
-            >
-              Festlegen
-            </button>
-            <button
-              onClick={handleProtokoll}
-              className="rounded-md border border-line px-4 py-2 text-sm"
-            >
-              Protokoll herunterladen
-            </button>
-            <button
-              onClick={() => setVorschau(null)}
-              className="rounded-md border border-line px-4 py-2 text-sm text-muted"
-            >
-              Verwerfen
-            </button>
-          </div>
+
         </div>
       )}
 
