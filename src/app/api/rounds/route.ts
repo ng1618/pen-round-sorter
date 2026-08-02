@@ -12,7 +12,7 @@ export async function POST(request: Request) {
   try {
     rumpf = await request.json();
   } catch {
-    return NextResponse.json({ fehler: "Kein gültiges JSON." }, { status: 400 });
+    return NextResponse.json({ fehler: "🕯️ Der Bote brachte unleserliches Pergament." }, { status: 400 });
   }
 
   const vorhandene = await dbStore.listRounds();

@@ -20,7 +20,7 @@ export async function POST() {
   const spieler = listEntries();
 
   if (runden.length === 0 || spieler.length === 0) {
-    return NextResponse.json({ fehler: "Es fehlen Runden oder Spielende." }, { status: 400 });
+    return NextResponse.json({ fehler: "🎲 Ohne Tische oder ohne Gäste lässt sich nichts auslosen." }, { status: 400 });
   }
 
   // `runMatching` liefert die Zuordnungen in der Losreihenfolge — daraus wird

@@ -17,7 +17,7 @@ export async function GET() {
 
   const lauf = neuesterLaufVoll() as Auslosung | null;
   if (!lauf) {
-    return NextResponse.json({ fehler: "Es wurde noch nichts festgelegt." }, { status: 404 });
+    return NextResponse.json({ fehler: "📜 Es ist noch nichts eingetragen — erst auslosen und festlegen." }, { status: 404 });
   }
 
   return NextResponse.json({ protokoll: protokollText(lauf) });

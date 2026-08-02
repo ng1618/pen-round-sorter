@@ -10,10 +10,10 @@ export async function DELETE(_request: Request, ctx: { params: Promise<{ id: str
 
   const id = Number((await ctx.params).id);
   if (!Number.isInteger(id)) {
-    return NextResponse.json({ fehler: "Ungültige id." }, { status: 400 });
+    return NextResponse.json({ fehler: "👤 Diese Person steht nicht in der Liste." }, { status: 400 });
   }
   if (!deleteSpieler(id)) {
-    return NextResponse.json({ fehler: "Nicht gefunden." }, { status: 404 });
+    return NextResponse.json({ fehler: "👤 Diese Person steht nicht in der Liste." }, { status: 404 });
   }
   return NextResponse.json({ ok: true });
 }

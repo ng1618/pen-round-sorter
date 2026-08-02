@@ -10,6 +10,12 @@ import { LEVELS, LEVEL_TOP, type Level, type RoundPreference } from "./types.ts"
  * 400 mit lesbarer Meldung.
  *
  * Reine Funktionen ohne Datenbankzugriff, damit sie ohne Aufbau pruefbar sind.
+ *
+ * **Zum Ton:** Eingabefehler sind im Wirtshaus-Ton gehalten — sie treffen Gaeste,
+ * die sich vertippt haben, und duerfen freundlich sein. Der Sachverhalt steht
+ * trotzdem immer dahinter ("... 5000 von hoechstens 80"), sonst weiss niemand,
+ * was zu aendern ist. **Betriebsfehler bleiben nuechtern**: "Auslosung wurde
+ * NICHT gespeichert" darf am Eventabend nicht in Prosa versteckt sein.
  */
 
 export const MAX_NAME = 80;
@@ -23,12 +29,19 @@ export type Gepruft<T> = { ok: true; wert: T } | { ok: false; fehler: string };
 
 function text(wert: unknown, feld: string, max: number, pflicht: boolean): Gepruft<string> {
   if (typeof wert !== "string") {
-    return pflicht ? { ok: false, fehler: `${feld} fehlt.` } : { ok: true, wert: "" };
+    return pflicht
+      ? { ok: false, fehler: `📜 Das Pergament ist an dieser Stelle leer — ${feld} fehlt.` }
+      : { ok: true, wert: "" };
   }
   const sauber = wert.trim();
-  if (pflicht && sauber.length === 0) return { ok: false, fehler: `${feld} darf nicht leer sein.` };
+  if (pflicht && sauber.length === 0) {
+    return { ok: false, fehler: `📜 Der Schreiber wartet — ${feld} darf nicht leer sein.` };
+  }
   if (sauber.length > max) {
-    return { ok: false, fehler: `${feld} ist zu lang (${sauber.length} von höchstens ${max}).` };
+    return {
+      ok: false,
+      fehler: `🐉 Hier enden die Karten: ${feld} ist zu lang (${sauber.length} von höchstens ${max}).`,
+    };
   }
   return { ok: true, wert: sauber };
 }
@@ -36,9 +49,11 @@ function text(wert: unknown, feld: string, max: number, pflicht: boolean): Gepru
 export type RundenEingabe = { dmName: string; title: string; vibe: string; capacity: number };
 
 export function pruefeRunde(rumpf: unknown, vorhandeneRunden: number): Gepruft<RundenEingabe> {
-  if (typeof rumpf !== "object" || rumpf === null) return { ok: false, fehler: "Kein Objekt." };
+  if (typeof rumpf !== "object" || rumpf === null) {
+    return { ok: false, fehler: "🕯️ Der Bote brachte unleserliches Pergament." };
+  }
   if (vorhandeneRunden >= MAX_RUNDEN) {
-    return { ok: false, fehler: `Es gibt bereits ${MAX_RUNDEN} Runden.` };
+    return { ok: false, fehler: `🏰 Das Wirtshaus ist ausgebucht — mehr als ${MAX_RUNDEN} Runden gehen nicht.` };
   }
 
   const r = rumpf as Record<string, unknown>;
@@ -51,7 +66,10 @@ export function pruefeRunde(rumpf: unknown, vorhandeneRunden: number): Gepruft<R
 
   const capacity = r.capacity;
   if (!Number.isInteger(capacity) || (capacity as number) < 1 || (capacity as number) > MAX_PLAETZE) {
-    return { ok: false, fehler: `Platzzahl muss zwischen 1 und ${MAX_PLAETZE} liegen.` };
+    return {
+      ok: false,
+      fehler: `🪑 So viele Stühle hat der Wirt nicht: Platzzahl muss zwischen 1 und ${MAX_PLAETZE} liegen.`,
+    };
   }
 
   return {
@@ -67,9 +85,11 @@ export function pruefeEinreichung(
   bekannteRunden: number[],
   vorhandeneSpieler: number,
 ): Gepruft<EinreichungsEingabe> {
-  if (typeof rumpf !== "object" || rumpf === null) return { ok: false, fehler: "Kein Objekt." };
+  if (typeof rumpf !== "object" || rumpf === null) {
+    return { ok: false, fehler: "🕯️ Der Bote brachte unleserliches Pergament." };
+  }
   if (vorhandeneSpieler >= MAX_SPIELENDE) {
-    return { ok: false, fehler: `Es sind bereits ${MAX_SPIELENDE} Spielende eingetragen.` };
+    return { ok: false, fehler: `🏰 Die Schankstube ist voll — mehr als ${MAX_SPIELENDE} Spielende gehen nicht.` };
   }
 
   const e = rumpf as Record<string, unknown>;
@@ -77,9 +97,11 @@ export function pruefeEinreichung(
   if (!playerName.ok) return playerName;
 
   const roh = e.preferences ?? [];
-  if (!Array.isArray(roh)) return { ok: false, fehler: "Wünsche müssen eine Liste sein." };
+  if (!Array.isArray(roh)) {
+    return { ok: false, fehler: "📜 Diese Wunschliste liest niemand — sie muss eine Liste sein." };
+  }
   if (roh.length > bekannteRunden.length) {
-    return { ok: false, fehler: "Mehr Wünsche als Runden." };
+    return { ok: false, fehler: "🎲 Mehr Wünsche als Tische — da ist einer zu viel." };
   }
 
   const erlaubteLevel = new Set<number>(LEVELS.map((l) => l.level));
@@ -87,17 +109,19 @@ export function pruefeEinreichung(
   const preferences: RoundPreference[] = [];
 
   for (const p of roh as Array<Record<string, unknown>>) {
-    if (typeof p !== "object" || p === null) return { ok: false, fehler: "Wunsch ist kein Objekt." };
+    if (typeof p !== "object" || p === null) {
+      return { ok: false, fehler: "🕯️ Ein Wunsch ist unleserlich." };
+    }
     const { roundId, level } = p;
     if (!Number.isInteger(roundId) || !bekannteRunden.includes(roundId as number)) {
-      return { ok: false, fehler: `Unbekannte Runde ${String(roundId)}.` };
+      return { ok: false, fehler: `🗺️ Runde ${String(roundId)} steht auf keiner Karte.` };
     }
     if (gesehen.has(roundId as number)) {
-      return { ok: false, fehler: `Runde ${String(roundId)} kommt doppelt vor.` };
+      return { ok: false, fehler: `👀 Runde ${String(roundId)} steht zweimal da — der Schreiber stutzt.` };
     }
     gesehen.add(roundId as number);
     if (!Number.isInteger(level) || !erlaubteLevel.has(level as number)) {
-      return { ok: false, fehler: `Ungültiges Level ${String(level)}.` };
+      return { ok: false, fehler: `🎲 Diesen Würfel gibt es nicht: Level ${String(level)}.` };
     }
     preferences.push({ roundId: roundId as number, level: level as Level });
   }
@@ -106,7 +130,10 @@ export function pruefeEinreichung(
   // ein 400 mit Begruendung statt eines 500.
   const top = preferences.filter((p) => p.level === LEVEL_TOP).length;
   if (top > 1) {
-    return { ok: false, fehler: `Nur eine Runde darf „unbedingt" sein, hier sind es ${top}.` };
+    return {
+      ok: false,
+      fehler: `🔥 Ein Herz schlägt nur für einen Tisch: nur eine Runde darf „unbedingt" sein, hier sind es ${top}.`,
+    };
   }
 
   return { ok: true, wert: { playerName: playerName.wert, preferences } };

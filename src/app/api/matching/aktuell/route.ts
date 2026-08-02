@@ -28,7 +28,7 @@ export async function GET() {
 
   const vorher = neuesteZuordnungen();
   if (!vorher) {
-    return NextResponse.json({ fehler: "Es wurde noch nichts festgelegt." }, { status: 404 });
+    return NextResponse.json({ fehler: "📜 Es ist noch nichts eingetragen — erst auslosen und festlegen." }, { status: 404 });
   }
 
   const runden = listRounds();
