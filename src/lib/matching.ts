@@ -1,4 +1,4 @@
-import { LEVEL_STANDARD, type Assignment, type PlayerEntry, type Round } from "./types";
+import { LEVEL_STANDARD, type Assignment, type PlayerEntry, type Round } from "./types.ts";
 
 function shuffled<T>(items: T[]): T[] {
   const result = [...items];

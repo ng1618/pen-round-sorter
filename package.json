@@ -10,6 +10,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test": "node --test",
     "db:seed": "node scripts/seed.mjs",
     "db:rounds": "node scripts/seed.mjs --nur-runden",
     "db:check": "node scripts/check-db.mjs",
