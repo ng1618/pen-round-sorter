@@ -18,12 +18,14 @@ export default function AdminClient() {
   const [entries, setEntries] = useState<PlayerEntry[]>([]);
   const [assignments, setAssignments] = useState<Assignment[] | null>(null);
   const [fehler, setFehler] = useState<string | null>(null);
+  const [tagInfo, setTagInfo] = useState<{ name: string; tag: number; tage: number } | null>(null);
   /** Ausgeloste, aber noch nicht festgelegte Auslosung. Steht nur im Speicher. */
   const [vorschau, setVorschau] = useState<
     { auslosung: Auslosung; kennzahlen: Kennzahlen; protokoll: string } | null
   >(null);
 
   async function refresh() {
+    setTagInfo(await (await fetch("/api/wochenende")).json());
     setRounds(await dataStore.listRounds());
     setEntries(await dataStore.listEntries());
     setAssignments(await dataStore.getAssignments());
@@ -224,7 +226,15 @@ Trotzdem festlegen?`)) {
 
   /** Naechster Spieltag. Runden und Einreichungen fangen dort bei null an. */
   async function handleNeuerTag() {
-    if (!confirm("Neuen Spieltag anlegen? Runden und Einreichungen beginnen dort von vorn.")) return;
+    if (
+      !confirm(
+        "Nächsten Spieltag beginnen?\n\n" +
+          "Der heutige Tag bleibt gespeichert, ist danach aber nicht mehr zu sehen — " +
+          "die App zeigt immer den neuesten. Protokoll und Einreichungen also vorher herunterladen.\n\n" +
+          "Der neue Tag fängt bei null an: keine Runden, keine Einreichungen.",
+      )
+    )
+      return;
     setFehler(null);
     const res = await fetch("/api/wochenende/tag", { method: "POST" });
     if (!res.ok) {
@@ -559,9 +569,25 @@ Trotzdem festlegen?`)) {
           Speichern
         </button>
         <button type="button" onClick={handleNeuerTag} className="rounded-md border border-line px-3 py-1.5">
-          Neuer Spieltag
+          Nächsten Tag anlegen
         </button>
       </form>
+
+      {assignments && !vorschau && tagInfo && tagInfo.tag < tagInfo.tage && (
+        <div className="rounded-md border border-accent/40 bg-card p-4">
+          <p className="font-medium">Tag {tagInfo.tag} ist ausgelost</p>
+          <p className="mt-1 text-sm text-muted">
+            Lade vorher Protokoll und Einreichungen herunter — nach dem Wechsel
+            zeigt die App nur noch Tag {tagInfo.tag + 1}.
+          </p>
+          <button
+            onClick={handleNeuerTag}
+            className="mt-3 rounded-md bg-accent px-4 py-2 text-sm font-medium text-white"
+          >
+            Tag {tagInfo.tag + 1} von {tagInfo.tage} beginnen
+          </button>
+        </div>
+      )}
 
       <div className="grid gap-6 sm:grid-cols-2">
         <div>
