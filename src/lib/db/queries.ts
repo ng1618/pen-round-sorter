@@ -240,15 +240,20 @@ export function addRound(
  * (wer da ist, wie viele Stuehle passen). Deshalb kollidiert es auch nicht mit
  * "keine nachtraegliche Umbesetzung", das Besetzung und Inhalt betraf.
  */
-export function setRundenPlaetze(
+export function rundeAktualisieren(
   id: number,
-  plaetze: number,
+  felder: { dmName: string; title: string; vibe: string; capacity: number },
   db: Database.Database = getDb(),
 ): boolean {
+  // Die Bedingung auf `event_id` ist kein Beiwerk: ohne sie liesse sich ueber
+  // eine geratene Id eine Runde des Vortages aendern, die niemand mehr sieht.
   return (
     db
-      .prepare("UPDATE runde SET plaetze = ? WHERE id = ? AND event_id = ?")
-      .run(plaetze, id, aktuellesEventId(db)).changes > 0
+      .prepare(
+        "UPDATE runde SET dm_name = ?, titel = ?, vibe = ?, plaetze = ? WHERE id = ? AND event_id = ?",
+      )
+      .run(felder.dmName, felder.title, felder.vibe, felder.capacity, id, aktuellesEventId(db))
+      .changes > 0
   );
 }
 

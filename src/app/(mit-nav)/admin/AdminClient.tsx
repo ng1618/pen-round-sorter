@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Bestaetigung from "@/components/Bestaetigung";
 import Fehlerhinweis from "@/components/Fehlerhinweis";
 import Tagesanzeige from "@/components/Tagesanzeige";
 import { dataStore } from "@/lib/dataStore";
@@ -13,11 +14,15 @@ import {
 } from "@/lib/protokoll";
 import { LEVELS, LEVEL_STANDARD, type Assignment, type PlayerEntry, type Round } from "@/lib/types";
 
+type RundenFelder = { dmName: string; title: string; vibe: string; capacity: number };
+
 export default function AdminClient() {
   const [rounds, setRounds] = useState<Round[]>([]);
   const [entries, setEntries] = useState<PlayerEntry[]>([]);
   const [assignments, setAssignments] = useState<Assignment[] | null>(null);
   const [fehler, setFehler] = useState<string | null>(null);
+  /** Text der 409-Rueckfrage beim Festlegen; `null` = keine offen. */
+  const [veraltet, setVeraltet] = useState<string | null>(null);
   const [tagInfo, setTagInfo] = useState<{ name: string; tag: number; tage: number } | null>(null);
   /** Ausgeloste, aber noch nicht festgelegte Auslosung. Steht nur im Speicher. */
   const [vorschau, setVorschau] = useState<
@@ -75,15 +80,11 @@ export default function AdminClient() {
     if (!res.ok) {
       const daten = await res.json().catch(() => ({}));
       setFehler(daten.fehler ?? `Festlegen fehlgeschlagen (${res.status}).`);
-      // Bei 409 hat sich der Stand bewegt — der Wirt entscheidet, nicht die App.
-      if (daten.veraltet && confirm(`${daten.fehler}
-
-Trotzdem festlegen?`)) {
-        await handleFestlegen(true);
-      }
+      if (daten.veraltet) setVeraltet(daten.fehler);
       return;
     }
 
+    setVeraltet(null);
     setVorschau(null);
     await refresh();
   }
@@ -173,8 +174,7 @@ Trotzdem festlegen?`)) {
     speichern((await res.json()).protokoll, "auslosung");
   }
 
-  async function handleDelete(id: number, name: string) {
-    if (!confirm(`${name} wirklich entfernen? Betrifft auch bereits festgelegte Ergebnisse.`)) return;
+  async function handleDelete(id: number) {
     setFehler(null);
     const res = await fetch(`/api/entries/${id}`, { method: "DELETE" });
     if (!res.ok) {
@@ -189,23 +189,24 @@ Trotzdem festlegen?`)) {
   }
 
   /**
-   * Platzzahl anpassen. Aendert sich die Kapazitaet, passt ein bereits
+   * Eine Runde aendern. Aendert sich die Platzzahl, passt ein bereits
    * festgelegter Lauf nicht mehr dazu — deshalb der Hinweis, neu auszulosen.
    */
-  async function handlePlaetze(id: number, plaetze: number) {
+  async function handleRunde(id: number, felder: RundenFelder) {
     setFehler(null);
     const res = await fetch(`/api/rounds/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ plaetze }),
+      body: JSON.stringify(felder),
     });
     if (!res.ok) {
       const { fehler: text } = await res.json().catch(() => ({}));
-      setFehler(text ?? `Platzzahl konnte nicht geändert werden (${res.status}).`);
-      return;
+      setFehler(text ?? `Runde konnte nicht geändert werden (${res.status}).`);
+      return false;
     }
     setVorschau(null);
     await refresh();
+    return true;
   }
 
   /** Wochenende benennen und die geplante Tagesanzahl setzen. */
@@ -226,15 +227,6 @@ Trotzdem festlegen?`)) {
 
   /** Naechster Spieltag. Runden und Einreichungen fangen dort bei null an. */
   async function handleNeuerTag() {
-    if (
-      !confirm(
-        "Nächsten Spieltag beginnen?\n\n" +
-          "Der heutige Tag bleibt gespeichert, ist danach aber nicht mehr zu sehen — " +
-          "die App zeigt immer den neuesten. Protokoll und Einreichungen also vorher herunterladen.\n\n" +
-          "Der neue Tag fängt bei null an: keine Runden, keine Einreichungen.",
-      )
-    )
-      return;
     setFehler(null);
     const res = await fetch("/api/wochenende/tag", { method: "POST" });
     if (!res.ok) {
@@ -251,7 +243,6 @@ Trotzdem festlegen?`)) {
   }
 
   async function handleReset() {
-    if (!confirm("Das löscht alle Runden, Spielenden und Ergebnisse. Weiter?")) return;
     setFehler(null);
     try {
       await dataStore.resetAll();
@@ -311,12 +302,16 @@ Trotzdem festlegen?`)) {
           )}
         </div>
         <div className="flex flex-col items-end gap-2">
-          <button
-            onClick={handleReset}
+          <Bestaetigung
+            knopf="Alles zurücksetzen"
+            frage={
+              "Runden, Spielende und Ergebnisse dieses Tages werden gelöscht.\n" +
+              "Das Wochenende und das Passwort bleiben."
+            }
+            jaText="Ja, löschen"
+            onJa={handleReset}
             className="rounded-md border border-red-700 px-3 py-1.5 text-sm text-red-700 hover:bg-red-700/10"
-          >
-            Alles zurücksetzen
-          </button>
+          />
           <button onClick={handleLogout} className="text-sm text-muted hover:text-foreground">
             Abmelden
           </button>
@@ -324,6 +319,29 @@ Trotzdem festlegen?`)) {
       </div>
 
       <Fehlerhinweis text={fehler} />
+
+      {veraltet && (
+        <div className="rounded-md border border-accent bg-card p-3 text-sm" role="alertdialog">
+          <p className="whitespace-pre-line">{veraltet}</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              onClick={() => handleFestlegen(true)}
+              className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white"
+            >
+              Trotzdem festlegen
+            </button>
+            <button
+              onClick={() => {
+                setVeraltet(null);
+                handleAuslosen();
+              }}
+              className="rounded-md border border-line px-4 py-2 text-sm"
+            >
+              Neu auslosen
+            </button>
+          </div>
+        </div>
+      )}
 
       <button
         onClick={handleAuslosen}
@@ -537,7 +555,9 @@ Trotzdem festlegen?`)) {
         </div>
       )}
 
+      {tagInfo && (
       <form
+        key={`${tagInfo.name}-${tagInfo.tage}`}
         onSubmit={(e) => {
           e.preventDefault();
           const daten = new FormData(e.currentTarget);
@@ -549,7 +569,7 @@ Trotzdem festlegen?`)) {
           Wochenende
           <input
             name="name"
-            defaultValue=""
+            defaultValue={tagInfo?.name ?? ""}
             placeholder="z. B. Novemberwochenende"
             className="rounded-md border border-line bg-card px-2 py-1"
           />
@@ -559,19 +579,21 @@ Trotzdem festlegen?`)) {
           <input
             name="tage"
             type="number"
-            min={1}
+            min={tagInfo?.tag ?? 1}
             max={7}
-            defaultValue={1}
+            defaultValue={tagInfo?.tage ?? 1}
             className="w-16 rounded-md border border-line bg-card px-2 py-1"
           />
         </label>
         <button type="submit" className="rounded-md border border-line px-3 py-1.5">
           Speichern
         </button>
-        <button type="button" onClick={handleNeuerTag} className="rounded-md border border-line px-3 py-1.5">
-          Nächsten Tag anlegen
-        </button>
+        <p className="w-full text-xs text-muted">
+          Es gibt genau ein Wochenende. Name und Tagesanzahl lassen sich ändern —
+          weniger Tage als bereits angelegt nicht.
+        </p>
       </form>
+      )}
 
       {assignments && !vorschau && tagInfo && tagInfo.tag < tagInfo.tage && (
         <div className="rounded-md border border-accent/40 bg-card p-4">
@@ -580,12 +602,20 @@ Trotzdem festlegen?`)) {
             Lade vorher Protokoll und Einreichungen herunter — nach dem Wechsel
             zeigt die App nur noch Tag {tagInfo.tag + 1}.
           </p>
-          <button
-            onClick={handleNeuerTag}
-            className="mt-3 rounded-md bg-accent px-4 py-2 text-sm font-medium text-white"
-          >
-            Tag {tagInfo.tag + 1} von {tagInfo.tage} beginnen
-          </button>
+          <div className="mt-3">
+            <Bestaetigung
+              knopf={`Tag ${tagInfo.tag + 1} von ${tagInfo.tage} beginnen`}
+              frage={
+                `Tag ${tagInfo.tag} bleibt gespeichert, ist danach aber nicht mehr zu sehen — ` +
+                "die App zeigt immer den neuesten.\n" +
+                "Protokoll und Einreichungen also vorher herunterladen.\n\n" +
+                "Der neue Tag fängt bei null an: keine Runden, keine Einreichungen."
+              }
+              jaText="Ja, nächsten Tag beginnen"
+              onJa={handleNeuerTag}
+              className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white"
+            />
+          </div>
         </div>
       )}
 
@@ -600,25 +630,7 @@ Trotzdem festlegen?`)) {
           )}
           <ul className="mt-2 flex flex-col gap-2">
             {rounds.map((r) => (
-              <li key={r.id} className="rounded-md border border-line bg-card p-3 text-sm">
-                <div>
-                  {r.title} — Leitung {r.dmName}
-                </div>
-                <label className="mt-2 flex items-center gap-2 text-muted">
-                  Plätze
-                  <input
-                    type="number"
-                    min={1}
-                    max={20}
-                    defaultValue={r.capacity}
-                    onBlur={(e) => {
-                      const wert = Number(e.target.value);
-                      if (wert !== r.capacity) handlePlaetze(r.id, wert);
-                    }}
-                    className="w-16 rounded-md border border-line bg-card px-2 py-1"
-                  />
-                </label>
-              </li>
+              <RundenZeile key={r.id} runde={r} onSpeichern={handleRunde} />
             ))}
             {rounds.length === 0 && <li className="text-sm text-muted">Noch nichts.</li>}
           </ul>
@@ -651,13 +663,14 @@ Trotzdem festlegen?`)) {
                   </span>
                 )}
                 </span>
-                <button
-                  onClick={() => handleDelete(e.id, e.playerName)}
+                <Bestaetigung
+                  knopf="entfernen"
+                  frage=""
+                  jaText="wirklich"
+                  kompakt
+                  onJa={() => handleDelete(e.id)}
                   className="shrink-0 text-red-700 hover:text-red-800"
-                  aria-label={`${e.playerName} entfernen`}
-                >
-                  entfernen
-                </button>
+                />
               </li>
             ))}
             {entries.length === 0 && <li className="text-sm text-muted">Noch nichts.</li>}
@@ -665,5 +678,126 @@ Trotzdem festlegen?`)) {
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * Eine Runde in der Liste, wahlweise als Anzeige oder als Formular.
+ *
+ * Bearbeitet wird auf Knopfdruck und nicht dauernd: die Liste ist im Betrieb
+ * vor allem zum Nachsehen da, und ein Feld, in das man aus Versehen tippt,
+ * aendert sonst den Tisch von jemand anderem.
+ *
+ * Der Entwurf liegt in lokalem Zustand und wird erst beim Speichern
+ * uebertragen — abbrechen stellt deshalb wirklich den alten Stand her.
+ */
+function RundenZeile({
+  runde,
+  onSpeichern,
+}: {
+  runde: Round;
+  onSpeichern: (id: number, felder: RundenFelder) => Promise<boolean>;
+}) {
+  const [offen, setOffen] = useState(false);
+  const [entwurf, setEntwurf] = useState<RundenFelder>({
+    dmName: runde.dmName,
+    title: runde.title,
+    vibe: runde.vibe,
+    capacity: runde.capacity,
+  });
+
+  function bearbeiten() {
+    // Beim Oeffnen frisch aus der Runde fuellen: sonst steht nach einem
+    // Abbrechen und erneutem Oeffnen der verworfene Entwurf wieder da.
+    setEntwurf({
+      dmName: runde.dmName,
+      title: runde.title,
+      vibe: runde.vibe,
+      capacity: runde.capacity,
+    });
+    setOffen(true);
+  }
+
+  if (!offen) {
+    return (
+      <li className="rounded-md border border-line bg-card p-3 text-sm">
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <div>
+              {runde.title} — Leitung {runde.dmName}
+            </div>
+            {runde.vibe && <p className="mt-1 text-xs text-muted">{runde.vibe}</p>}
+            <p className="mt-1 text-xs text-muted">{runde.capacity} Plätze</p>
+          </div>
+          <button onClick={bearbeiten} className="shrink-0 text-accent hover:underline">
+            bearbeiten
+          </button>
+        </div>
+      </li>
+    );
+  }
+
+  return (
+    <li className="rounded-md border border-accent bg-card p-3 text-sm">
+      <form
+        onSubmit={async (e) => {
+          e.preventDefault();
+          if (await onSpeichern(runde.id, entwurf)) setOffen(false);
+        }}
+        className="flex flex-col gap-2"
+      >
+        <label className="flex flex-col gap-1">
+          Titel
+          <input
+            value={entwurf.title}
+            onChange={(e) => setEntwurf({ ...entwurf, title: e.target.value })}
+            className="rounded-md border border-line bg-card px-2 py-1"
+          />
+        </label>
+        <label className="flex flex-col gap-1">
+          Leitung
+          <input
+            value={entwurf.dmName}
+            onChange={(e) => setEntwurf({ ...entwurf, dmName: e.target.value })}
+            className="rounded-md border border-line bg-card px-2 py-1"
+          />
+        </label>
+        <label className="flex flex-col gap-1">
+          Stimmung
+          <textarea
+            value={entwurf.vibe}
+            rows={2}
+            onChange={(e) => setEntwurf({ ...entwurf, vibe: e.target.value })}
+            className="rounded-md border border-line bg-card px-2 py-1"
+          />
+        </label>
+        <label className="flex items-center gap-2">
+          Plätze
+          <input
+            type="number"
+            min={1}
+            max={20}
+            value={entwurf.capacity}
+            onChange={(e) => setEntwurf({ ...entwurf, capacity: Number(e.target.value) })}
+            className="w-16 rounded-md border border-line bg-card px-2 py-1"
+          />
+        </label>
+        <div className="flex gap-2">
+          <button
+            type="submit"
+            className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-white"
+          >
+            Speichern
+          </button>
+          <button
+            type="button"
+            onClick={() => setOffen(false)}
+            className="rounded-md border border-line px-3 py-1.5 text-sm"
+          >
+            Abbrechen
+          </button>
+        </div>
+      </form>
+    </li>
   );
 }

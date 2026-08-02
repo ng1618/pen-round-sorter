@@ -48,12 +48,14 @@ function text(wert: unknown, feld: string, max: number, pflicht: boolean): Gepru
 
 export type RundenEingabe = { dmName: string; title: string; vibe: string; capacity: number };
 
-export function pruefeRunde(rumpf: unknown, vorhandeneRunden: number): Gepruft<RundenEingabe> {
+/**
+ * Die Felder einer Runde. Getrennt von `pruefeRunde`, weil die Obergrenze fuer
+ * die ANZAHL der Runden nur beim Anlegen gilt: beim Bearbeiten der zwanzigsten
+ * Runde wuerde sie sonst grundlos zuschlagen, obwohl keine dazukommt.
+ */
+export function pruefeRundenFelder(rumpf: unknown): Gepruft<RundenEingabe> {
   if (typeof rumpf !== "object" || rumpf === null) {
     return { ok: false, fehler: "🕯️ Der Bote brachte unleserliches Pergament." };
-  }
-  if (vorhandeneRunden >= MAX_RUNDEN) {
-    return { ok: false, fehler: `🏰 Das Wirtshaus ist ausgebucht — mehr als ${MAX_RUNDEN} Runden gehen nicht.` };
   }
 
   const r = rumpf as Record<string, unknown>;
@@ -76,6 +78,14 @@ export function pruefeRunde(rumpf: unknown, vorhandeneRunden: number): Gepruft<R
     ok: true,
     wert: { dmName: dmName.wert, title: title.wert, vibe: vibe.wert, capacity: capacity as number },
   };
+}
+
+/** Anlegen: dieselben Felder, zusaetzlich die Obergrenze fuer die Anzahl. */
+export function pruefeRunde(rumpf: unknown, vorhandeneRunden: number): Gepruft<RundenEingabe> {
+  if (vorhandeneRunden >= MAX_RUNDEN) {
+    return { ok: false, fehler: `🏰 Das Wirtshaus ist ausgebucht — mehr als ${MAX_RUNDEN} Runden gehen nicht.` };
+  }
+  return pruefeRundenFelder(rumpf);
 }
 
 export type EinreichungsEingabe = { playerName: string; preferences: RoundPreference[] };

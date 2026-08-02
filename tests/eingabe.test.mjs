@@ -7,7 +7,13 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { MAX_NAME, MAX_RUNDEN, pruefeEinreichung, pruefeRunde } from "../src/lib/eingabe.ts";
+import {
+  MAX_NAME,
+  MAX_RUNDEN,
+  pruefeEinreichung,
+  pruefeRunde,
+  pruefeRundenFelder,
+} from "../src/lib/eingabe.ts";
 
 const RUNDEN = [1, 2, 3];
 
@@ -34,6 +40,19 @@ test("Runde: zu langer Name, leerer Titel, unsinnige Platzzahl", () => {
 test("Runde: Obergrenze greift", () => {
   const r = pruefeRunde({ dmName: "Mara", title: "T", capacity: 5 }, MAX_RUNDEN);
   assert.equal(r.ok, false);
+});
+
+test("Bearbeiten: dieselben Feldpruefungen, aber ohne die Obergrenze", () => {
+  // Die Obergrenze zaehlt Runden, die dazukommen — beim Bearbeiten kommt keine
+  // dazu. Liefe das Bearbeiten ueber `pruefeRunde`, waere die zwanzigste Runde
+  // nicht mehr aenderbar, ohne dass jemand den Zusammenhang erraet.
+  const r = pruefeRundenFelder({ dmName: " Mara ", title: " Turm ", vibe: "", capacity: 7 });
+  assert.ok(r.ok);
+  assert.deepEqual(r.wert, { dmName: "Mara", title: "Turm", vibe: "", capacity: 7 });
+
+  // Die Feldpruefungen selbst muessen aber identisch bleiben.
+  assert.equal(pruefeRundenFelder({ dmName: "Mara", title: "   ", capacity: 5 }).ok, false);
+  assert.equal(pruefeRundenFelder({ dmName: "Mara", title: "T", capacity: 0 }).ok, false);
 });
 
 test("Einreichung: nur der Name genuegt", () => {
