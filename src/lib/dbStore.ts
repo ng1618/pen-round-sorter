@@ -31,25 +31,6 @@ export const dbStore: DataStore = {
     return q.neuesteZuordnungen();
   },
 
-  /**
-   * UEBERGANGSWEISE. Der Matcher laeuft noch im Browser, also gibt es hier
-   * weder Seed noch einen Schnappschuss aus dem Moment des Auslosens — beides
-   * wird hier beim Schreiben erzeugt. Genau das soll es am Ende NICHT tun
-   * (siehe ENTSCHEIDUNGEN.md, "Wann wird ein Matching-Lauf gespeichert"): der
-   * `eingabestand` muss beim Auslosen entstehen, sonst passt er nicht zu dem
-   * Ergebnis, das auf dem Schirm stand. Faellt weg, sobald die Routen
-   * `preview` und `commit` stehen.
-   */
-  async saveAssignments(assignments) {
-    q.commitLauf({
-      seed: "",
-      konfiguration: { verfahren: "rsd" },
-      eingabestand: { runden: q.listRounds(), spieler: q.listEntries() },
-      losreihenfolge: assignments.map((a) => a.playerId),
-      zuordnungen: assignments,
-    });
-  },
-
   async resetAll() {
     q.resetAll();
   },

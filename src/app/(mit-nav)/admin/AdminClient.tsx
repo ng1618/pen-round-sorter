@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Fehlerhinweis from "@/components/Fehlerhinweis";
 import { dataStore } from "@/lib/dataStore";
-import { runMatching } from "@/lib/matching";
+import type { Auslosung, Kennzahlen } from "@/lib/protokoll";
 import { LEVELS, LEVEL_STANDARD, type Assignment, type PlayerEntry, type Round } from "@/lib/types";
 
 export default function AdminClient() {
@@ -11,6 +11,10 @@ export default function AdminClient() {
   const [entries, setEntries] = useState<PlayerEntry[]>([]);
   const [assignments, setAssignments] = useState<Assignment[] | null>(null);
   const [fehler, setFehler] = useState<string | null>(null);
+  /** Ausgeloste, aber noch nicht festgelegte Auslosung. Steht nur im Speicher. */
+  const [vorschau, setVorschau] = useState<
+    { auslosung: Auslosung; kennzahlen: Kennzahlen; protokoll: string } | null
+  >(null);
 
   async function refresh() {
     setRounds(await dataStore.listRounds());
@@ -33,31 +37,55 @@ export default function AdminClient() {
   }, []);
 
   /**
-   * Erst speichern, dann anzeigen — nicht umgekehrt.
-   *
-   * Vorher setzte diese Funktion zuerst den lokalen Zustand und schickte danach
-   * ab. Schlug das Abschicken fehl (etwa 401, weil die Sitzung nach zwoelf
-   * Stunden ablaeuft), zeigte die Oberflaeche trotzdem ein Ergebnis, das nie
-   * in der Datenbank stand: die Auslosung sah fertig aus, festgelegt war
-   * nichts. Am Eventabend ist das der teuerste denkbare Fehler.
+   * Auslosen schreibt nichts. Der Schnappschuss entsteht dabei auf dem Server,
+   * nicht erst beim Festlegen — sonst passt er nicht zu dem Ergebnis, das hier
+   * auf dem Schirm steht.
    */
-  async function handleRunMatching() {
+  async function handleAuslosen() {
     setFehler(null);
-    const ergebnis = runMatching(rounds, entries);
+    const res = await fetch("/api/matching/preview", { method: "POST" });
+    if (!res.ok) {
+      const { fehler: text } = await res.json().catch(() => ({}));
+      setFehler(text ?? `Auslosen fehlgeschlagen (${res.status}).`);
+      return;
+    }
+    setVorschau(await res.json());
+  }
 
-    try {
-      await dataStore.saveAssignments(ergebnis);
-    } catch (e) {
-      setFehler(
-        `Auslosung wurde NICHT gespeichert, es gilt weiter das vorherige Ergebnis: ` +
-          `${e instanceof Error ? e.message : String(e)}`,
-      );
+  /** Erst hier entsteht eine Zeile. Verworfene Wuerfe hat es nie gegeben. */
+  async function handleFestlegen(trotzdem = false) {
+    if (!vorschau) return;
+    setFehler(null);
+
+    const res = await fetch("/api/matching/commit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ auslosung: vorschau.auslosung, trotzdem }),
+    });
+
+    if (!res.ok) {
+      const daten = await res.json().catch(() => ({}));
+      setFehler(daten.fehler ?? `Festlegen fehlgeschlagen (${res.status}).`);
+      // Bei 409 hat sich der Stand bewegt — der Wirt entscheidet, nicht die App.
+      if (daten.veraltet && confirm(`${daten.fehler}
+
+Trotzdem festlegen?`)) {
+        await handleFestlegen(true);
+      }
       return;
     }
 
-    // Zurueckgelesen statt lokal gesetzt: was hier steht, steht auch in der
-    // Datenbank.
-    setAssignments(await dataStore.getAssignments());
+    setVorschau(null);
+    await refresh();
+  }
+
+  function handleProtokoll() {
+    if (!vorschau) return;
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([vorschau.protokoll], { type: "text/plain" }));
+    a.download = `auslosung-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.txt`;
+    a.click();
+    URL.revokeObjectURL(a.href);
   }
 
   async function handleDelete(id: number, name: string) {
@@ -155,12 +183,76 @@ export default function AdminClient() {
       <Fehlerhinweis text={fehler} />
 
       <button
-        onClick={handleRunMatching}
+        onClick={handleAuslosen}
         disabled={rounds.length === 0 || entries.length === 0}
         className="w-fit rounded-md bg-accent px-4 py-2 font-medium text-white disabled:opacity-40"
       >
-        Auslosen
+        {vorschau ? "Neu auslosen" : "Auslosen"}
       </button>
+
+      {vorschau && (
+        <div className="rounded-md border-2 border-accent bg-card p-4">
+          <p className="font-medium text-accent">Vorschau — noch nicht festgelegt</p>
+          <p className="mt-1 text-sm text-muted">
+            Diese Auslosung steht nur im Speicher. Erst &bdquo;Festlegen&ldquo; schreibt
+            sie in die Datenbank; &bdquo;Neu auslosen&ldquo; wirft sie weg.
+          </p>
+
+          <ul className="mt-3 flex flex-col gap-1 text-sm text-muted">
+            {vorschau.kennzahlen.jeLevel.map((z) => (
+              <li key={z.label}>
+                {z.label}: {z.anzahl} Spielende
+              </li>
+            ))}
+            {vorschau.kennzahlen.ohnePlatz > 0 && (
+              <li className="text-red-700">Ohne Platz: {vorschau.kennzahlen.ohnePlatz}</li>
+            )}
+          </ul>
+
+          <div className="mt-4 flex flex-col gap-3">
+            {vorschau.auslosung.eingabestand.runden.map((runde) => {
+              const sitzend = vorschau.auslosung.zuordnungen.filter((z) => z.roundId === runde.id);
+              return (
+                <div key={runde.id} className="rounded-md border border-line p-3 text-sm">
+                  <p className="font-medium">
+                    {runde.title} — Leitung {runde.dmName} ({sitzend.length}/{runde.capacity})
+                  </p>
+                  <p className="mt-1 text-muted">
+                    {sitzend
+                      .map(
+                        (z) =>
+                          vorschau.auslosung.eingabestand.spieler.find((p) => p.id === z.playerId)
+                            ?.playerName ?? "?",
+                      )
+                      .join(", ")}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button
+              onClick={() => handleFestlegen()}
+              className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white"
+            >
+              Festlegen
+            </button>
+            <button
+              onClick={handleProtokoll}
+              className="rounded-md border border-line px-4 py-2 text-sm"
+            >
+              Protokoll herunterladen
+            </button>
+            <button
+              onClick={() => setVorschau(null)}
+              className="rounded-md border border-line px-4 py-2 text-sm text-muted"
+            >
+              Verwerfen
+            </button>
+          </div>
+        </div>
+      )}
 
       {assignments && (
         <div>

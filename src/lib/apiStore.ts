@@ -24,6 +24,5 @@ export const apiStore = {
   addEntry: (entry: Omit<PlayerEntry, "id" | "createdAt">) =>
     postJson<PlayerEntry>("/api/entries", entry),
   getAssignments: () => getJson<Assignment[] | null>("/api/assignments"),
-  saveAssignments: (assignments: Assignment[]) => postJson<void>("/api/assignments", assignments),
   resetAll: () => postJson<void>("/api/reset", {}),
 };
