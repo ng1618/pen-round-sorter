@@ -15,10 +15,14 @@ Working prototype: round submission, player ranking, Random Serial
 Dictatorship matching, and an admin dashboard with a match-quality
 breakdown. Styled as a tavern & parchment theme.
 
-Data currently lives in a flat JSON file (`.data/store.json`) via a small
-API, or in `localStorage` for solo browser testing. Migration to SQLite on
-Railway is planned next, not yet built — the persistence layer, the admin
-password gate, and unguessable per-event links are all still to come.
+Data lives in **SQLite** (`.data/pen-round-sorter.db`) on the machine running
+the server, reached through the API routes — every device that can open the app
+sees the same state. The earlier JSON file and the browser-only mode are gone.
+The admin area is password-protected, and the routes that change
+anything require that login — not just the page.
+
+Hosting on Railway is planned next and not yet built, and so are the
+unguessable per-event links with their QR codes.
 
 ## Start
 

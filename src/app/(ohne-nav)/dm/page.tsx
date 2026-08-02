@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Fehlerhinweis from "@/components/Fehlerhinweis";
 import { dataStore } from "@/lib/dataStore";
 import type { Round } from "@/lib/types";
 
@@ -11,22 +12,32 @@ export default function DmPage() {
   const [vibe, setVibe] = useState("");
   const [capacity, setCapacity] = useState(4);
   const [submitted, setSubmitted] = useState(false);
+  const [fehler, setFehler] = useState<string | null>(null);
 
   useEffect(() => {
-    dataStore.listRounds().then(setRounds);
+    dataStore
+      .listRounds()
+      .then(setRounds)
+      .catch((e) => setFehler(`Runden konnten nicht geladen werden: ${e instanceof Error ? e.message : String(e)}`));
   }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!dmName.trim() || !title.trim() || capacity < 1) return;
 
-    await dataStore.addRound({
-      dmName: dmName.trim(),
-      title: title.trim(),
-      vibe: vibe.trim(),
-      capacity,
-    });
-    setRounds(await dataStore.listRounds());
+    setFehler(null);
+    try {
+      await dataStore.addRound({
+        dmName: dmName.trim(),
+        title: title.trim(),
+        vibe: vibe.trim(),
+        capacity,
+      });
+      setRounds(await dataStore.listRounds());
+    } catch (e) {
+      setFehler(`Runde konnte nicht eingetragen werden: ${e instanceof Error ? e.message : String(e)}`);
+      return;
+    }
     setTitle("");
     setVibe("");
     setCapacity(4);
@@ -41,6 +52,8 @@ export default function DmPage() {
           Sag den Mitspielenden, was du leitest und wie viele Plätze frei sind.
         </p>
       </div>
+
+      <Fehlerhinweis text={fehler} />
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <label className="flex flex-col gap-1 text-sm">

@@ -110,6 +110,15 @@ const MIGRATIONS: Array<(db: Database.Database) => void> = [
       -- Namen mit neuer Bedeutung weiterzubenutzen waere die schlimmere Variante.
       ALTER TABLE zuordnung RENAME COLUMN wunsch_rang TO erhaltenes_level;
     `),
+
+  // Schritt 3 (01.08.): echter Widerruf von Sitzungen.
+  //
+  // Der Sitzungswert wird aus dem Passwort-Hash abgeleitet. Ohne diese Spalte
+  // gibt es nichts, was sich beim Abmelden aendern koennte — eine kopierte
+  // Cookie-Kopie blieb also gueltig, obwohl "Abmelden" gedrueckt wurde. Die
+  // Zahl geht in die Signatur ein; hochzaehlen entwertet alles Bisherige.
+  (db) =>
+    db.exec("ALTER TABLE event ADD COLUMN sitzungs_version INTEGER NOT NULL DEFAULT 0"),
 ];
 
 function migrate(db: Database.Database): void {

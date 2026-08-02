@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Fehlerhinweis from "@/components/Fehlerhinweis";
 import { dataStore } from "@/lib/dataStore";
 import { LEVELS, LEVEL_STANDARD, LEVEL_TOP, type Level, type Round } from "@/lib/types";
 
@@ -9,9 +10,13 @@ export default function RankPage() {
   const [playerName, setPlayerName] = useState("");
   const [levels, setLevels] = useState<Record<number, Level>>({});
   const [submitted, setSubmitted] = useState(false);
+  const [fehler, setFehler] = useState<string | null>(null);
 
   useEffect(() => {
-    dataStore.listRounds().then(setRounds);
+    dataStore
+      .listRounds()
+      .then(setRounds)
+      .catch((e) => setFehler(`Runden konnten nicht geladen werden: ${e instanceof Error ? e.message : String(e)}`));
   }, []);
 
   const levelOf = (roundId: number): Level => levels[roundId] ?? LEVEL_STANDARD;
@@ -35,10 +40,16 @@ export default function RankPage() {
     e.preventDefault();
     if (!playerName.trim()) return;
 
-    await dataStore.addEntry({
-      playerName: playerName.trim(),
-      preferences: rounds.map((r) => ({ roundId: r.id, level: levelOf(r.id) })),
-    });
+    setFehler(null);
+    try {
+      await dataStore.addEntry({
+        playerName: playerName.trim(),
+        preferences: rounds.map((r) => ({ roundId: r.id, level: levelOf(r.id) })),
+      });
+    } catch (e) {
+      setFehler(`Abschicken hat nicht geklappt: ${e instanceof Error ? e.message : String(e)}`);
+      return;
+    }
     setSubmitted(true);
     setPlayerName("");
     setLevels({});
@@ -72,6 +83,8 @@ export default function RankPage() {
           darfst du 🔥 <strong>unbedingt</strong> geben, genau einen.
         </p>
       </div>
+
+      <Fehlerhinweis text={fehler} />
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-6">
         <label className="flex flex-col gap-1 text-sm">

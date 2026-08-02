@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import type Database from "better-sqlite3";
 import { getDb } from "./connection.ts";
 import { LEVEL_STANDARD, type Assignment, type Level, type PlayerEntry, type Round } from "../types.ts";
@@ -46,8 +47,14 @@ export function nameKey(name: string): string {
   return name.trim().replace(/\s+/g, " ").toLocaleLowerCase("de-DE");
 }
 
+/**
+ * Muss **unratbar** sein — das ist der ganze Zweck der Tokens fuer `/dm` und
+ * `/rank` (Entscheidung vom 29.07.). `Math.random()` waere dafuer untauglich:
+ * vorhersagbar, nicht fuer Sicherheitszwecke gedacht. Gefunden im
+ * Code-Durchgang am 01.08., bevor die Tokens in KW38 benutzt werden.
+ */
 function zufallsToken(): string {
-  return Math.random().toString(36).slice(2, 10);
+  return randomBytes(9).toString("base64url");
 }
 
 /**
@@ -237,6 +244,20 @@ export function adminPasswort(
   return { hash: zeile.hash, salt: zeile.salt };
 }
 
+/** Zaehler, der in die Sitzungssignatur eingeht. Hochzaehlen = alles abmelden. */
+export function sitzungsVersion(db: Database.Database = getDb()): number {
+  const zeile = db
+    .prepare("SELECT sitzungs_version AS v FROM event WHERE id = ?")
+    .get(aktuellesEventId(db)) as { v: number };
+  return zeile?.v ?? 0;
+}
+
+export function sitzungsVersionErhoehen(db: Database.Database = getDb()): void {
+  db.prepare("UPDATE event SET sitzungs_version = sitzungs_version + 1 WHERE id = ?").run(
+    aktuellesEventId(db),
+  );
+}
+
 export function setAdminPasswort(
   hash: string,
   salt: string,
@@ -330,12 +351,25 @@ export function neuesteZuordnungen(db: Database.Database = getDb()): Assignment[
   }));
 }
 
-/** Alles weg. Das Event haengt an allem, also reicht eine Zeile — fast. */
+/**
+ * Runden, Spielende und Laeufe weg — **Event und Passwort bleiben stehen**.
+ *
+ * Frueher wurde das Event mitgeloescht. Das nahm das Verwaltungspasswort mit,
+ * und danach war die Ersteinrichtung wieder offen: wer als Naechster POSTet,
+ * besitzt die Verwaltung. Genau der Ablauf ist am Eventabend wahrscheinlich
+ * (kurz zuruecksetzen, 15 Handys im selben Netz), belegt im Sicherheitsdurchgang
+ * vom 01.08. Die Entscheidung vom 29.07. sah das Zuruecksetzen des Passworts
+ * ausdruecklich vor — dort aber als Nebeneffekt, nicht als Wiederherstellungsweg:
+ * der ist Host-Zugriff, weil man den Knopf ja gerade nicht druecken kann, wenn
+ * man nicht hineinkommt.
+ */
 export function resetAll(db: Database.Database = getDb()): void {
   db.transaction(() => {
-    // zuordnung zuerst: runden_id steht auf RESTRICT und wuerde das Loeschen
-    // der Runden sonst blockieren.
+    // Reihenfolge zaehlt: zuordnung.runden_id steht auf RESTRICT und wuerde das
+    // Loeschen der Runden sonst blockieren.
     db.exec("DELETE FROM zuordnung");
-    db.exec("DELETE FROM event");
+    db.exec("DELETE FROM matching_lauf");
+    db.exec("DELETE FROM spieler"); // spieler_gewicht faellt per CASCADE mit
+    db.exec("DELETE FROM runde");
   })();
 }

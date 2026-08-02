@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { abmelden, anmelden, passwortGesetzt, passwortSetzen } from "@/lib/auth";
+import { abmelden, anmelden, passwortGesetzt, passwortSetzen, ueberHttps } from "@/lib/auth";
 
 /**
  * POST = anmelden. Ist noch kein Passwort gesetzt, ist der erste POST die
@@ -15,7 +15,7 @@ export async function POST(request: Request) {
   const ersteinrichtung = !passwortGesetzt();
   if (ersteinrichtung) passwortSetzen(passwort);
 
-  if (!(await anmelden(passwort))) {
+  if (!(await anmelden(passwort, ueberHttps(request)))) {
     return NextResponse.json({ fehler: "Passwort stimmt nicht." }, { status: 401 });
   }
   return NextResponse.json({ ok: true, ersteinrichtung });

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Fehlerhinweis from "@/components/Fehlerhinweis";
 import { dataStore } from "@/lib/dataStore";
 import { runMatching } from "@/lib/matching";
 import { LEVELS, LEVEL_STANDARD, type Assignment, type PlayerEntry, type Round } from "@/lib/types";
@@ -9,6 +10,7 @@ export default function AdminClient() {
   const [rounds, setRounds] = useState<Round[]>([]);
   const [entries, setEntries] = useState<PlayerEntry[]>([]);
   const [assignments, setAssignments] = useState<Assignment[] | null>(null);
+  const [fehler, setFehler] = useState<string | null>(null);
 
   async function refresh() {
     setRounds(await dataStore.listRounds());
@@ -17,22 +19,57 @@ export default function AdminClient() {
   }
 
   useEffect(() => {
-    dataStore.listRounds().then(setRounds);
-    dataStore.listEntries().then(setEntries);
-    dataStore.getAssignments().then(setAssignments);
+    // Als eigene async-Funktion, nicht `refresh().catch(...)`: sonst beanstandet
+    // der react-hooks-Regelsatz einen setState-Aufruf direkt im Effekt.
+    void (async () => {
+      try {
+        await refresh();
+      } catch (e) {
+        setFehler(
+          `Daten konnten nicht geladen werden: ${e instanceof Error ? e.message : String(e)}`,
+        );
+      }
+    })();
   }, []);
 
+  /**
+   * Erst speichern, dann anzeigen — nicht umgekehrt.
+   *
+   * Vorher setzte diese Funktion zuerst den lokalen Zustand und schickte danach
+   * ab. Schlug das Abschicken fehl (etwa 401, weil die Sitzung nach zwoelf
+   * Stunden ablaeuft), zeigte die Oberflaeche trotzdem ein Ergebnis, das nie
+   * in der Datenbank stand: die Auslosung sah fertig aus, festgelegt war
+   * nichts. Am Eventabend ist das der teuerste denkbare Fehler.
+   */
   async function handleRunMatching() {
-    const result = runMatching(rounds, entries);
-    await dataStore.saveAssignments(result);
-    setAssignments(result);
+    setFehler(null);
+    const ergebnis = runMatching(rounds, entries);
+
+    try {
+      await dataStore.saveAssignments(ergebnis);
+    } catch (e) {
+      setFehler(
+        `Auslosung wurde NICHT gespeichert, es gilt weiter das vorherige Ergebnis: ` +
+          `${e instanceof Error ? e.message : String(e)}`,
+      );
+      return;
+    }
+
+    // Zurueckgelesen statt lokal gesetzt: was hier steht, steht auch in der
+    // Datenbank.
+    setAssignments(await dataStore.getAssignments());
   }
 
   async function handleDelete(id: number, name: string) {
     if (!confirm(`${name} wirklich entfernen? Betrifft auch bereits festgelegte Ergebnisse.`)) return;
+    setFehler(null);
     const res = await fetch(`/api/entries/${id}`, { method: "DELETE" });
     if (!res.ok) {
-      alert("Entfernen fehlgeschlagen — vermutlich abgemeldet. Seite neu laden.");
+      setFehler(
+        res.status === 401
+          ? "Nicht mehr angemeldet — die Sitzung ist abgelaufen. Seite neu laden und erneut anmelden."
+          : `Entfernen fehlgeschlagen (${res.status}).`,
+      );
       return;
     }
     await refresh();
@@ -45,8 +82,13 @@ export default function AdminClient() {
 
   async function handleReset() {
     if (!confirm("Das löscht alle Runden, Spielenden und Ergebnisse. Weiter?")) return;
-    await dataStore.resetAll();
-    await refresh();
+    setFehler(null);
+    try {
+      await dataStore.resetAll();
+      await refresh();
+    } catch (e) {
+      setFehler(`Zuruecksetzen fehlgeschlagen: ${e instanceof Error ? e.message : String(e)}`);
+    }
   }
 
   const entriesById = new Map(entries.map((e) => [e.id, e]));
@@ -109,6 +151,8 @@ export default function AdminClient() {
           </button>
         </div>
       </div>
+
+      <Fehlerhinweis text={fehler} />
 
       <button
         onClick={handleRunMatching}
