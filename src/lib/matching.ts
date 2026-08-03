@@ -10,12 +10,38 @@ function shuffled<T>(items: T[]): T[] {
 }
 
 /**
+ * Unterscheiden die Angaben dieser Person ueberhaupt eine Runde von einer
+ * anderen? Wer ueberall dasselbe Level stehen hat — auch wer gar nichts
+ * eingereicht hat — ist gleichgueltig im Wortsinn: jeder Tisch ist ihm recht.
+ */
+function hatWunsch(entry: PlayerEntry, rounds: Round[]): boolean {
+  if (rounds.length === 0) return false;
+  const levelOf = new Map(entry.preferences.map((p) => [p.roundId, p.level]));
+  const level = (roundId: number) => levelOf.get(roundId) ?? LEVEL_STANDARD;
+  const erstes = level(rounds[0].id);
+  return rounds.some((r) => level(r.id) !== erstes);
+}
+
+export type ReihenfolgeRegel = "wunsch-zuerst" | "einheitlich";
+
+/**
+ * Welche Losreihenfolge gilt — die Bedingung steht bewusst nur hier.
+ *
+ * Das Protokoll muss dieselbe Antwort bekommen wie der Matcher, sonst behauptet
+ * der Ausdruck eine Regel, nach der gar nicht gelost wurde.
+ */
+export function reihenfolgeRegel(rounds: Round[], entries: PlayerEntry[]): ReihenfolgeRegel {
+  const plaetze = rounds.reduce((summe, r) => summe + r.capacity, 0);
+  return plaetze >= entries.length ? "wunsch-zuerst" : "einheitlich";
+}
+
+/**
  * Random Serial Dictatorship: players are visited in a random order and each
  * takes the best round still open to them. Fair and strategy-proof (ranking
  * honestly is always a player's best move), at the cost of not being globally
  * optimal.
  *
- * Zwei Dinge folgen aus den Levels statt einer geordneten Liste:
+ * Drei Dinge folgen aus den Levels statt einer geordneten Liste:
  *
  * 1. **Niemand bleibt uebrig, solange Plaetze da sind.** Jede Runde hat fuer
  *    jede Person ein Level — fehlt eins, gilt „geht auch". Wer nur seinen Namen
@@ -25,11 +51,40 @@ function shuffled<T>(items: T[]): T[] {
  *    lieb sind, den setzt der Matcher dorthin, wo mehr frei ist. Das kostet die
  *    Person nichts — sie hat ja gesagt, dass es ihr gleich ist — und haelt die
  *    knappe Runde fuer die frei, die sie wirklich wollen.
+ * 3. **Gleichgueltige werden zuletzt gezogen — aber nur, wenn die Plaetze
+ *    reichen.** Das ist keine neue Fairnessregel, sondern die Reparatur von
+ *    Punkt 2: der freiere Tisch kann nur schuetzen, wenn die Belegung schon
+ *    etwas aussagt. Am Anfang sind alle Tische gleich leer, der Vergleich ist
+ *    ein Gleichstand, und weil `sort` stabil ist, gewinnt schlicht die Runde
+ *    mit der kleinsten Id. Frueh gezogene Gleichgueltige werden also nach
+ *    Listenreihenfolge verteilt statt nach Bedarf — und koennen dabei den
+ *    knappen Tisch belegen, den Punkt 2 freihalten wollte.
+ *
+ *    Bei **Unterdeckung** gilt die Regel nicht. Dann hiesse „zuletzt" naemlich
+ *    „vielleicht gar kein Platz", und die Regel bestrafte genau die, die
+ *    ehrlich gesagt haben, dass sie flexibel sind. Solange Plaetze >= Spielende
+ *    ist, entscheidet die Reihenfolge nur das WO, nie das OB — deshalb kostet
+ *    sie dort niemanden etwas, und deshalb lohnt auch kein erfundenes 🔥: der
+ *    Platz ist ohnehin sicher, und die Lüge setzt einen an einen Tisch, den man
+ *    nicht wollte.
  */
 export function runMatching(rounds: Round[], entries: PlayerEntry[]): Assignment[] {
   const capacityLeft = new Map(rounds.map((r) => [r.id, r.capacity]));
 
-  return shuffled(entries).map((entry) => {
+  const mitWunsch: PlayerEntry[] = [];
+  const gleichgueltig: PlayerEntry[] = [];
+  for (const entry of entries) {
+    (hatWunsch(entry, rounds) ? mitWunsch : gleichgueltig).push(entry);
+  }
+
+  // Innerhalb der Gruppen wird weiterhin gelost — die Reihenfolge unter den
+  // Begeisterten ist die eigentliche Verlosung und bleibt unberuehrt.
+  const reihenfolge =
+    reihenfolgeRegel(rounds, entries) === "wunsch-zuerst"
+      ? [...shuffled(mitWunsch), ...shuffled(gleichgueltig)]
+      : shuffled(entries);
+
+  return reihenfolge.map((entry) => {
     const levelOf = new Map(entry.preferences.map((p) => [p.roundId, p.level]));
     const level = (roundId: number) => levelOf.get(roundId) ?? LEVEL_STANDARD;
 

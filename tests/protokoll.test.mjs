@@ -63,6 +63,38 @@ test("Protokoll: Ergebnis, Kennzahlen und Losreihenfolge stehen drin", () => {
   assert.match(t, /nicht reproduzierbar/);
 });
 
+test("Protokoll: die geltende Losreihenfolge-Regel steht dabei", () => {
+  // Ohne diesen Satz sieht die Reihenfolge willkuerlich aus, und die Frage
+  // "warum kam der zuerst dran?" hat am Eventabend keine Antwort.
+  const basis = {
+    seed: "",
+    eingabestand: { runden: RUNDEN, spieler: SPIELER },
+    losreihenfolge: [1, 2],
+    zuordnungen: [
+      { playerId: 1, roundId: 1, receivedLevel: 3 },
+      { playerId: 2, roundId: 2, receivedLevel: 1 },
+    ],
+  };
+
+  assert.match(
+    protokollText({ ...basis, konfiguration: { reihenfolge: "wunsch-zuerst" } }),
+    /erst die mit einem Wunsch, dann die ohne/,
+  );
+  assert.match(
+    protokollText({ ...basis, konfiguration: { reihenfolge: "einheitlich" } }),
+    /rein zufaellig/,
+  );
+  assert.match(
+    protokollText({ ...basis, konfiguration: { reihenfolge: "uebernommen" } }),
+    /nicht neu gelost/,
+  );
+
+  // Ohne Angabe lieber gar keine Erklaerung als eine falsche.
+  const ohne = protokollText({ ...basis, konfiguration: {} });
+  assert.match(ohne, /Losreihenfolge/);
+  assert.doesNotMatch(ohne, /erst die mit einem Wunsch|rein zufaellig|nicht neu gelost/);
+});
+
 test("Protokoll: wer ohne Platz bleibt, wird eigens ausgewiesen", () => {
   const a = {
     seed: "",

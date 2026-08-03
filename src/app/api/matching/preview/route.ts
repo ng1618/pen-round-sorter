@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { istAngemeldet } from "@/lib/auth";
 import { listEntries, listRounds } from "@/lib/db/queries";
-import { runMatching } from "@/lib/matching";
+import { reihenfolgeRegel, runMatching } from "@/lib/matching";
 import { kennzahlen, protokollText, type Auslosung } from "@/lib/protokoll";
 
 /**
@@ -29,7 +29,7 @@ export async function POST() {
 
   const auslosung: Auslosung = {
     seed: "",
-    konfiguration: { verfahren: "rsd" },
+    konfiguration: { verfahren: "rsd", reihenfolge: reihenfolgeRegel(runden, spieler) },
     eingabestand: { runden, spieler },
     losreihenfolge: zuordnungen.map((z) => z.playerId),
     zuordnungen,

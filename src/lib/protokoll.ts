@@ -49,6 +49,26 @@ export function kennzahlen(a: Auslosung): Kennzahlen {
  * Ergebnis trotzdem) und Ehrlichkeits-Nachweis — wer viermal ausgelost hat, hat
  * vier Dateien. Damit ersetzt er den gestrichenen `versuche`-Zaehler.
  */
+/**
+ * Wie die Losreihenfolge zustande kam, in Worten.
+ *
+ * Ein unbekannter oder fehlender Wert bekommt **keinen** Satz. Lieber gar keine
+ * Erklaerung als eine falsche: der Ausdruck ist das, was am Eventabend
+ * aushaengt, und „erst die mit einem Wunsch" unter einer Reihenfolge, die gar
+ * nicht so entstanden ist, waere eine Falschaussage ueber das Verfahren.
+ */
+const REIHENFOLGE_ERKLAERUNG: Record<string, string> = {
+  "wunsch-zuerst":
+    "  (erst die mit einem Wunsch, dann die ohne — beide Gruppen zufaellig.\n" +
+    "   Plaetze reichen fuer alle, die Reihenfolge entscheidet also nur den Tisch)",
+  einheitlich:
+    "  (rein zufaellig — bei Unterdeckung wird nicht nach Wuenschen vorsortiert,\n" +
+    "   sonst haetten die ohne Wunsch das Nachsehen beim Platz selbst)",
+  uebernommen:
+    "  (nicht neu gelost — Reihenfolge aus dem vorherigen Lauf uebernommen,\n" +
+    "   wer seither dazugekommen ist, steht hinten)",
+};
+
 export function protokollText(a: Auslosung, erzeugtAm = new Date()): string {
   const k = kennzahlen(a);
   const spielerVon = new Map(a.eingabestand.spieler.map((s) => [s.id, s]));
@@ -82,8 +102,13 @@ export function protokollText(a: Auslosung, erzeugtAm = new Date()): string {
 
   // Sichtbar machen, wer in welcher Reihenfolge gezogen wurde — Abschnitt 2 des
   // Arbeitsdokuments: "ein nachvollziehbares Losverfahren wird akzeptiert".
+  //
+  // Mit der Regel dazu, sonst sieht die Reihenfolge willkuerlich aus und die
+  // Frage "warum kam der zuerst dran?" hat am Eventabend keine Antwort.
   zeilen.push("Losreihenfolge:");
   zeilen.push(`  ${a.losreihenfolge.map(name).join(", ")}`);
+  const erklaerung = REIHENFOLGE_ERKLAERUNG[String(a.konfiguration.reihenfolge)];
+  if (erklaerung) zeilen.push(erklaerung);
 
   return zeilen.join("\n");
 }

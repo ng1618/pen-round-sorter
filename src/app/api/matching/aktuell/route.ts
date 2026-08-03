@@ -49,7 +49,10 @@ export async function GET() {
 
   const auslosung: Auslosung = {
     seed: "",
-    konfiguration: { verfahren: "rsd", grundlage: "letzter Lauf" },
+    // `reihenfolge: "uebernommen"` — hier wird nicht gelost. Die Reihenfolge
+    // stammt aus dem vorherigen Lauf; ohne diese Angabe behauptete das
+    // Protokoll eine Losregel, nach der gar nicht gezogen wurde.
+    konfiguration: { verfahren: "rsd", grundlage: "letzter Lauf", reihenfolge: "uebernommen" },
     eingabestand: { runden, spieler },
     // Die bisherige Reihenfolge, gefiltert; wer neu ist, kommt hinten dran.
     losreihenfolge: [
