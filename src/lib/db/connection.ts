@@ -177,7 +177,31 @@ const MIGRATIONS: Array<(db: Database.Database) => void> = [
       verknuepfen.run(id, e.id);
     }
   },
+
+  // Schritt 5 (30.08.): Einstellungen fuer das Wochenende.
+  //
+  // Eine JSON-Spalte statt einer Spalte je Schalter — dieselbe Wahl wie bei
+  // `matching_lauf.konfiguration`. Der Grund ist nicht Bequemlichkeit: jeder
+  // neue Schalter braeuchte sonst eine eigene Migration, und Migrationen sind
+  // unumkehrbar, sobald sie einmal irgendwo gelaufen sind. Bei einem Feld, das
+  // ausschliesslich als Ganzes gelesen und geschrieben wird und nach dem nie
+  // gefiltert wird, kostet JSON nichts.
+  //
+  // `'{}'` als Vorgabe und nicht die vollstaendigen Werte: was fehlt, faellt
+  // beim Lesen auf `EINSTELLUNGEN_STANDARD` zurueck. So aendert eine spaeter
+  // hinzugefuegte Einstellung bestehende Zeilen nicht.
+  (db) =>
+    db.exec("ALTER TABLE wochenende ADD COLUMN einstellungen TEXT NOT NULL DEFAULT '{}'"),
 ];
+
+/**
+ * Der Schemastand, den frisch migrierte Datenbanken haben.
+ *
+ * Exportiert, damit Pruefungen ihn nicht abschreiben muessen: `check-db.mjs`
+ * nagelte die Zahl fest und wurde dadurch von jedem neuen Migrationsschritt
+ * rot — ein Test, der bei korrekter Arbeit ausschlaegt, wird bald ignoriert.
+ */
+export const SCHEMA_VERSION = MIGRATIONS.length;
 
 function migrate(db: Database.Database): void {
   const current = db.pragma("user_version", { simple: true }) as number;

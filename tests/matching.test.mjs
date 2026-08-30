@@ -146,7 +146,7 @@ test("das erhaltene Level passt zur Angabe der Person", () => {
 });
 
 // Losreihenfolge: Gleichgueltige zuletzt, aber nur bei ausreichenden Plaetzen.
-// Entscheidung vom 03.08., siehe ENTSCHEIDUNGEN.md.
+// Entscheidung vom 30.08., siehe ENTSCHEIDUNGEN.md.
 
 /** Person `i` hat einen Wunsch, wenn `i` gerade ist. */
 const GEMISCHT = (i) => (i % 2 === 0 ? { 1: 3 } : {});

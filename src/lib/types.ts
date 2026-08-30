@@ -49,3 +49,42 @@ export type Assignment = {
   /** Das Level, das die Person bekommen hat. 3 = ihr Topwunsch. */
   receivedLevel: Level | null;
 };
+
+/**
+ * Verfahren der Auslosung.
+ *
+ * `rsd` — Random Serial Dictatorship: zufaellige Reihenfolge, jeder nimmt den
+ * besten noch freien Tisch. Manipulationsfest, dafuer nicht global optimal.
+ *
+ * `leximin` — minimiert der Reihe nach: wie viele ohne Platz bleiben, dann wie
+ * viele auf der schlechtesten Stufe landen, dann auf der zweitschlechtesten.
+ * Fragt also "wie schlimm trifft es den, den es am haertesten trifft?" statt
+ * "wie viel Zufriedenheit kommt zusammen?". **Nicht manipulationsfest** — wie
+ * jedes Verfahren, das ein Gesamtziel optimiert. Siehe ENTSCHEIDUNGEN.md.
+ */
+export type Verfahren = "rsd" | "leximin";
+
+/**
+ * Was fuer das ganze Wochenende gilt. Liegt als JSON in
+ * `wochenende.einstellungen` — eine Spalte statt einer je Schalter, sonst
+ * braeuchte jeder neue Schalter eine eigene Migration.
+ */
+export type Einstellungen = {
+  verfahren: Verfahren;
+  /**
+   * Wer an einem frueheren Tag seinen Topwunsch nicht bekam, wird spaeter
+   * frueher gezogen. Noch ohne Wirkung — die Umsetzung braucht die
+   * Teilnehmerliste (Phase 4).
+   */
+  ausgleichUeberTage: boolean;
+};
+
+/**
+ * Was gilt, solange nichts eingestellt wurde. `rsd` bleibt die Vorgabe, weil
+ * die Manipulationsfestigkeit die Fairnessbegruendung des Projekts traegt —
+ * das Optimum muss man ausdruecklich waehlen.
+ */
+export const EINSTELLUNGEN_STANDARD: Einstellungen = {
+  verfahren: "rsd",
+  ausgleichUeberTage: false,
+};

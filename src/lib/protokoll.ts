@@ -23,32 +23,36 @@ export type Kennzahlen = {
   ohnePlatz: number;
 };
 
-export function kennzahlen(a: Auslosung): Kennzahlen {
+/**
+ * Wie viele Personen welches Level bekommen haben, hohes zuerst.
+ *
+ * Eigene Funktion, weil das festgelegte Ergebnis dieselbe Zahl braucht, ohne
+ * eine ganze `Auslosung` zur Hand zu haben — bis zum 30.08. rechnete die
+ * Verwaltung sie deshalb ein zweites Mal selbst aus.
+ */
+export function levelVerteilung(zuordnungen: Assignment[]): Kennzahlen["jeLevel"] {
   const zaehler = new Map<number, number>();
-  for (const z of a.zuordnungen) {
+  for (const z of zuordnungen) {
     if (z.receivedLevel == null) continue;
     zaehler.set(z.receivedLevel, (zaehler.get(z.receivedLevel) ?? 0) + 1);
   }
 
+  return LEVELS.map(({ level, emoji, label }) => ({
+    level,
+    label: `${emoji} ${label}`,
+    anzahl: zaehler.get(level) ?? 0,
+  })).filter((z) => z.anzahl > 0);
+}
+
+export function kennzahlen(a: Auslosung): Kennzahlen {
   return {
     plaetze: a.eingabestand.runden.reduce((s, r) => s + r.capacity, 0),
     spielende: a.eingabestand.spieler.length,
-    jeLevel: LEVELS.map(({ level, emoji, label }) => ({
-      level,
-      label: `${emoji} ${label}`,
-      anzahl: zaehler.get(level) ?? 0,
-    })).filter((z) => z.anzahl > 0),
+    jeLevel: levelVerteilung(a.zuordnungen),
     ohnePlatz: a.zuordnungen.filter((z) => z.roundId == null).length,
   };
 }
 
-/**
- * Der Text, den man vor dem Festlegen herunterladen kann.
- *
- * Er ist zweierlei: Papier-Notausgang (wenn der Server ausfaellt, hast du das
- * Ergebnis trotzdem) und Ehrlichkeits-Nachweis — wer viermal ausgelost hat, hat
- * vier Dateien. Damit ersetzt er den gestrichenen `versuche`-Zaehler.
- */
 /**
  * Wie die Losreihenfolge zustande kam, in Worten.
  *
@@ -67,7 +71,47 @@ const REIHENFOLGE_ERKLAERUNG: Record<string, string> = {
   uebernommen:
     "  (nicht neu gelost — Reihenfolge aus dem vorherigen Lauf uebernommen,\n" +
     "   wer seither dazugekommen ist, steht hinten)",
+  gleichstand:
+    "  (hier wurde nicht gelost, sondern gerechnet. Die Reihenfolge entschied\n" +
+    "   nur bei gleich guten Loesungen, wer den besseren Platz bekam)",
 };
+
+/** Ein Satz zum Verfahren — mit dem Vorbehalt, wo einer noetig ist. */
+const VERFAHREN_ERKLAERUNG: Record<string, string> = {
+  rsd:
+    "  Losverfahren: zufaellige Reihenfolge, jeder nimmt den besten noch freien\n" +
+    "  Tisch. Manipulationsfest — ehrlich anzugeben ist immer der beste Zug.",
+  leximin:
+    "  Leximin: minimiert der Reihe nach, wie viele ohne Platz bleiben, dann wie\n" +
+    "  viele auf der schlechtesten Stufe landen, dann auf der zweitschlechtesten.\n" +
+    "  ACHTUNG: nicht manipulationsfest — wer weiss, dass es laeuft, kann mit\n" +
+    "  unehrlichen Angaben gewinnen.",
+};
+
+/**
+ * Der Text, den man vor dem Festlegen herunterladen kann.
+ *
+ * Er ist zweierlei: Papier-Notausgang (wenn der Server ausfaellt, hast du das
+ * Ergebnis trotzdem) und Ehrlichkeits-Nachweis — wer viermal ausgelost hat, hat
+ * vier Dateien. Damit ersetzt er den gestrichenen `versuche`-Zaehler.
+ */
+/**
+ * Zeilen zu Platzzahlen, die **nach** der Auslosung geaendert wurden — in
+ * Ruecksprache mit der Leitung, wenn es sonst keine gute Loesung gab.
+ */
+function plaetzeGeaendert(a: Auslosung): string[] {
+  const aenderungen = a.konfiguration.plaetzeNachtraeglich;
+  if (!Array.isArray(aenderungen) || aenderungen.length === 0) return [];
+
+  return [
+    "Platzzahl nachtraeglich geaendert (mit der Leitung abgesprochen):",
+    ...aenderungen.map((x) => {
+      const { titel, von, auf } = x as { titel: string; von: number; auf: number };
+      return `  ${titel}: ${von} -> ${auf}`;
+    }),
+    "",
+  ];
+}
 
 export function protokollText(a: Auslosung, erzeugtAm = new Date()): string {
   const k = kennzahlen(a);
@@ -77,6 +121,7 @@ export function protokollText(a: Auslosung, erzeugtAm = new Date()): string {
   const zeilen: string[] = [
     `Auslosung vom ${erzeugtAm.toLocaleString("de-DE")}`,
     `Verfahren: ${String(a.konfiguration.verfahren ?? "rsd")}${a.seed ? ` · Seed: ${a.seed}` : " · ohne Seed (nicht reproduzierbar)"}`,
+    ...(VERFAHREN_ERKLAERUNG[String(a.konfiguration.verfahren ?? "rsd")] ?? "").split("\n").filter(Boolean),
     "",
     `${a.eingabestand.runden.length} Runden · ${k.plaetze} Plaetze · ${k.spielende} Spielende`,
     "",
@@ -84,6 +129,10 @@ export function protokollText(a: Auslosung, erzeugtAm = new Date()): string {
     ...k.jeLevel.map((z) => `  ${z.label}: ${z.anzahl}`),
     ...(k.ohnePlatz > 0 ? [`  ohne Platz: ${k.ohnePlatz}`] : []),
     "",
+    // Nachtraeglich aufgestockte Tische muessen als solche kenntlich sein.
+    // Sonst liest sich der Ausdruck, als haette die Runde von Anfang an sechs
+    // Plaetze gehabt — und das Ergebnis waere nicht mehr nachvollziehbar.
+    ...plaetzeGeaendert(a),
   ];
 
   for (const runde of a.eingabestand.runden) {

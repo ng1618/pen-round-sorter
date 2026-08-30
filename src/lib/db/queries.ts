@@ -1,7 +1,15 @@
 import { randomBytes } from "node:crypto";
 import type Database from "better-sqlite3";
 import { getDb } from "./connection.ts";
-import { LEVEL_STANDARD, type Assignment, type Level, type PlayerEntry, type Round } from "../types.ts";
+import {
+  EINSTELLUNGEN_STANDARD,
+  LEVEL_STANDARD,
+  type Assignment,
+  type Einstellungen,
+  type Level,
+  type PlayerEntry,
+  type Round,
+} from "../types.ts";
 
 /**
  * Die Datenzugriffsschicht: der EINZIGE Ort, an dem Tabellenzeilen und
@@ -137,6 +145,45 @@ export function wochenendeAktualisieren(
   }
   db.prepare("UPDATE wochenende SET name = ?, tage = ? WHERE id = ?").run(name, tage, w);
   return { ok: true };
+}
+
+/**
+ * Die Einstellungen des Wochenendes.
+ *
+ * Fehlende Felder fallen auf `EINSTELLUNGEN_STANDARD` zurueck — deshalb kann
+ * eine spaeter hinzugefuegte Einstellung bestehende Zeilen unveraendert lassen.
+ * Kaputtes JSON wird ebenso behandelt: lieber mit den Vorgaben weiterlaufen als
+ * die Auslosung an einer Einstellung scheitern lassen.
+ */
+export function einstellungen(db: Database.Database = getDb()): Einstellungen {
+  const zeile = db
+    .prepare("SELECT einstellungen FROM wochenende WHERE id = ?")
+    .get(aktuellesWochenendeId(db)) as { einstellungen: string } | undefined;
+
+  let gespeichert: Partial<Einstellungen> = {};
+  try {
+    gespeichert = JSON.parse(zeile?.einstellungen ?? "{}") as Partial<Einstellungen>;
+  } catch {
+    gespeichert = {};
+  }
+
+  return { ...EINSTELLUNGEN_STANDARD, ...gespeichert };
+}
+
+/**
+ * Nur die uebergebenen Felder aendern, der Rest bleibt. Geschrieben wird immer
+ * der vollstaendige Satz, damit in der Spalte nie ein halber Stand steht.
+ */
+export function einstellungenSetzen(
+  teil: Partial<Einstellungen>,
+  db: Database.Database = getDb(),
+): Einstellungen {
+  const neu = { ...einstellungen(db), ...teil };
+  db.prepare("UPDATE wochenende SET einstellungen = ? WHERE id = ?").run(
+    JSON.stringify(neu),
+    aktuellesWochenendeId(db),
+  );
+  return neu;
 }
 
 export type TagInfo = { name: string; tag: number; tage: number };
@@ -521,7 +568,16 @@ export function neuesteZuordnungen(db: Database.Database = getDb()): Assignment[
 }
 
 /**
- * Runden, Spielende und Laeufe weg — **Event und Passwort bleiben stehen**.
+ * Runden, Spielende und Laeufe **dieses Tages** weg — Event und Passwort
+ * bleiben stehen, **fruehere Tage ebenfalls**.
+ *
+ * ⚠️ Bis zum 30.08. loeschte das ohne `WHERE event_id` und damit **alle Tage
+ * des Wochenendes**. Aufgefallen beim Umbau der Verwaltung: die Oberflaeche
+ * versprach schon vorher "Runden, Spielende und Ergebnisse dieses Tages". Am
+ * Samstagmorgen kurz zuruecksetzen haette also das festgelegte Ergebnis vom
+ * Freitag mitgenommen — und mit ihm die Unveraenderlichkeit, auf der die ganze
+ * Nachvollziehbarkeit steht. Der Testkatalog verlangt genau das Gegenteil:
+ * "Tag neu aufsetzen laesst die anderen Tage unangetastet".
  *
  * Frueher wurde das Event mitgeloescht. Das nahm das Verwaltungspasswort mit,
  * und danach war die Ersteinrichtung wieder offen: wer als Naechster POSTet,
@@ -533,12 +589,18 @@ export function neuesteZuordnungen(db: Database.Database = getDb()): Assignment[
  * man nicht hineinkommt.
  */
 export function resetAll(db: Database.Database = getDb()): void {
+  const eventId = aktuellesEventId(db);
+
   db.transaction(() => {
     // Reihenfolge zaehlt: zuordnung.runden_id steht auf RESTRICT und wuerde das
     // Loeschen der Runden sonst blockieren.
-    db.exec("DELETE FROM zuordnung");
-    db.exec("DELETE FROM matching_lauf");
-    db.exec("DELETE FROM spieler"); // spieler_gewicht faellt per CASCADE mit
-    db.exec("DELETE FROM runde");
+    db.prepare(
+      "DELETE FROM zuordnung WHERE matching_lauf_id IN " +
+        "(SELECT id FROM matching_lauf WHERE event_id = ?)",
+    ).run(eventId);
+    db.prepare("DELETE FROM matching_lauf WHERE event_id = ?").run(eventId);
+    // spieler_gewicht faellt per CASCADE mit
+    db.prepare("DELETE FROM spieler WHERE event_id = ?").run(eventId);
+    db.prepare("DELETE FROM runde WHERE event_id = ?").run(eventId);
   })();
 }

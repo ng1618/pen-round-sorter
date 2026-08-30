@@ -110,3 +110,35 @@ test("Protokoll: wer ohne Platz bleibt, wird eigens ausgewiesen", () => {
   assert.match(t, /Ohne Platz \(1\)/);
   assert.match(t, /- Paul/);
 });
+
+test("Protokoll: nachtraeglich geaenderte Platzzahlen stehen drin", () => {
+  // Wird waehrend der Auslosung aufgestockt ("ach komm, dann machen wir
+  // sechs"), muss der Ausdruck das sagen — sonst liest er sich, als haette der
+  // Tisch von Anfang an sechs Plaetze gehabt.
+  const t = protokollText({
+    seed: "",
+    konfiguration: {
+      verfahren: "rsd",
+      plaetzeNachtraeglich: [{ titel: "Turm", von: 5, auf: 6 }],
+    },
+    eingabestand: { runden: RUNDEN, spieler: SPIELER },
+    losreihenfolge: [1, 2],
+    zuordnungen: [
+      { playerId: 1, roundId: 1, receivedLevel: 3 },
+      { playerId: 2, roundId: 2, receivedLevel: 1 },
+    ],
+  });
+  assert.match(t, /nachtraeglich geaendert/);
+  assert.match(t, /Turm: 5 -> 6/);
+});
+
+test("Protokoll: ohne Aenderung steht dazu nichts", () => {
+  const t = protokollText({
+    seed: "",
+    konfiguration: { verfahren: "rsd" },
+    eingabestand: { runden: RUNDEN, spieler: SPIELER },
+    losreihenfolge: [1, 2],
+    zuordnungen: [{ playerId: 1, roundId: 1, receivedLevel: 3 }],
+  });
+  assert.doesNotMatch(t, /nachtraeglich/);
+});

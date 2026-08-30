@@ -1,6 +1,15 @@
 import { LEVEL_STANDARD, type Assignment, type PlayerEntry, type Round } from "./types.ts";
 
-function shuffled<T>(items: T[]): T[] {
+/**
+ * Fisher-Yates, rueckwaerts und einschliesslich `i` — das `i + 1` ist der Punkt:
+ * mit `Math.random() * i` koennte kein Element auf seinem Platz bleiben, und die
+ * Verteilung waere nachweislich schief.
+ *
+ * Exportiert, weil Leximin dieselbe Mischung fuer seinen Gleichstandsentscheid
+ * braucht. Eine zweite Fassung waere die Stelle, an der spaeter ein gesaeter
+ * Zufallsgenerator nur in einer von beiden ankaeme.
+ */
+export function shuffled<T>(items: T[]): T[] {
   const result = [...items];
   for (let i = result.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
