@@ -29,9 +29,15 @@ export default function RootLayout({
       lang="de"
       className={`${cinzel.variable} ${ebGaramond.variable} h-full antialiased`}
     >
-      {/* Navigationsleiste und <main> kommen aus den Gruppen-Layouts:
-          (mit-nav) fuer Start und Verwaltung, (ohne-nav) fuer /dm und /rank. */}
-      <body className="min-h-full flex flex-col">{children}</body>
+      {/* Ein Layout fuer alle Seiten. Die Route-Gruppen (mit-nav)/(ohne-nav)
+          sind am 30.08. entfallen: sie unterschieden sich nur durch die
+          Navigationsleiste, und die war funktionslos — Leitungen und Spielende
+          kommen ueber ihren QR-Code direkt auf ihre Seite, die Verwaltung hat
+          ihre eigene Unterleiste. Ohne die Leiste waren beide Layouts gleich,
+          also blieb nur totes Geruest. */}
+      <body className="min-h-full flex flex-col">
+        <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8">{children}</main>
+      </body>
     </html>
   );
 }

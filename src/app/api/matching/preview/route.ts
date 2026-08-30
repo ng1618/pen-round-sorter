@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { istAngemeldet } from "@/lib/auth";
-import { listEntries, listRounds } from "@/lib/db/queries";
+import { einstellungen, listEntries, listRounds } from "@/lib/db/queries";
+import { runLeximin } from "@/lib/leximin";
 import { reihenfolgeRegel, runMatching } from "@/lib/matching";
 import { kennzahlen, protokollText, type Auslosung } from "@/lib/protokoll";
 
@@ -23,13 +24,27 @@ export async function POST() {
     return NextResponse.json({ fehler: "🎲 Ohne Tische oder ohne Gäste lässt sich nichts auslosen." }, { status: 400 });
   }
 
-  // `runMatching` liefert die Zuordnungen in der Losreihenfolge — daraus wird
-  // sie abgeleitet, statt sie ein zweites Mal zu wuerfeln.
-  const zuordnungen = runMatching(runden, spieler);
+  const regeln = einstellungen();
+
+  // Beide Verfahren liefern die Zuordnungen in der Reihenfolge, in der sie die
+  // Personen abgearbeitet haben — daraus wird `losreihenfolge` abgeleitet,
+  // statt sie ein zweites Mal zu wuerfeln.
+  //
+  // Was diese Reihenfolge **bedeutet**, ist bei den beiden aber verschieden,
+  // und deshalb traegt die Konfiguration es mit: bei RSD ist sie die Ziehung
+  // selbst, bei Leximin nur der Gleichstandsentscheid — gezogen wird dort
+  // nichts, gerechnet schon.
+  const leximin = regeln.verfahren === "leximin";
+  const zuordnungen = leximin ? runLeximin(runden, spieler) : runMatching(runden, spieler);
 
   const auslosung: Auslosung = {
     seed: "",
-    konfiguration: { verfahren: "rsd", reihenfolge: reihenfolgeRegel(runden, spieler) },
+    // Die geltenden Einstellungen wandern in den Lauf. Ohne das behauptete ein
+    // alter Lauf spaeter Regeln, die inzwischen umgestellt wurden.
+    konfiguration: {
+      ...regeln,
+      reihenfolge: leximin ? "gleichstand" : reihenfolgeRegel(runden, spieler),
+    },
     eingabestand: { runden, spieler },
     losreihenfolge: zuordnungen.map((z) => z.playerId),
     zuordnungen,

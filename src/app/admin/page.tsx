@@ -1,5 +1,5 @@
 import { istAngemeldet, passwortGesetzt } from "@/lib/auth";
-import AdminClient from "./AdminClient";
+import TresenClient from "./TresenClient";
 import AnmeldeFormular from "./AnmeldeFormular";
 
 /**
@@ -26,6 +26,6 @@ export const dynamic = "force-dynamic";
  * direkt aufrufen kann.
  */
 export default async function AdminPage() {
-  if (await istAngemeldet()) return <AdminClient />;
+  if (await istAngemeldet()) return <TresenClient />;
   return <AnmeldeFormular ersteinrichtung={!passwortGesetzt()} />;
 }

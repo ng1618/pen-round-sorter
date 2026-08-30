@@ -5,7 +5,7 @@ import { useState } from "react";
 /**
  * Rueckfrage **in der Seite** statt `window.confirm`.
  *
- * Am 02.08. gemessen: in eingebetteten Browsern gibt `confirm()` sofort `false`
+ * Am 30.08. gemessen: in eingebetteten Browsern gibt `confirm()` sofort `false`
  * zurueck, ohne einen Dialog zu zeigen. Der Knopf sieht dann tot aus, und weil
  * genau die destruktiven Aktionen dahinter lagen (zuruecksetzen, entfernen,
  * naechster Tag), waren sie alle drei stumm wirkungslos. Auf fremden Geraeten am
