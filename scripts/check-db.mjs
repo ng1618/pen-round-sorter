@@ -16,7 +16,7 @@ rmSync(`${DATEI}-shm`, { force: true });
 // Erst die Umgebungsvariable, dann der Import: statische Importe werden nach
 // oben gezogen und wuerden die Verbindung gegen die echte Datei oeffnen.
 process.env.PRS_DB_FILE = DATEI;
-const { getDb, closeDb } = await import("../src/lib/db/connection.ts");
+const { getDb, closeDb, SCHEMA_VERSION } = await import("../src/lib/db/connection.ts");
 
 const db = getDb();
 let fehler = 0;
@@ -62,7 +62,8 @@ pruefe("Pragmas stehen richtig", () => {
   const version = db.pragma("user_version", { simple: true });
   if (journal !== "wal") throw new Error(`journal_mode ist ${journal}`);
   if (fk !== 1) throw new Error("foreign_keys ist aus");
-  if (version !== 4) throw new Error(`user_version ist ${version}`);
+  if (version !== SCHEMA_VERSION)
+    throw new Error(`user_version ist ${version}, erwartet ${SCHEMA_VERSION}`);
   return `journal_mode=${journal}, foreign_keys=${fk}, user_version=${version}`;
 });
 
@@ -202,6 +203,62 @@ pruefe("keine verletzten Fremdschluessel in der Datei", () => {
   const verletzungen = db.pragma("foreign_key_check");
   if (verletzungen.length) throw new Error(`${verletzungen.length} Verletzung(en)`);
   return "0";
+});
+
+// Ab hier ueber die Zugriffsschicht statt mit rohem SQL — geprueft wird das
+// Verhalten der Anwendung, nicht das der Tabellen.
+const q = await import("../src/lib/db/queries.ts");
+
+pruefe("Zuruecksetzen laesst fruehere Tage unangetastet", () => {
+  // Testkatalog, Abschnitt 15: "Tag neu aufsetzen laesst die anderen Tage
+  // unangetastet". Bis zum 30.08. loeschte `resetAll()` ohne `WHERE event_id`
+  // und nahm damit das festgelegte Ergebnis vom Vortag mit — am Samstagmorgen
+  // waere so das Freitagsergebnis verschwunden.
+  //
+  // Eigenes Wochenende, damit die Zeilen der Pruefungen oben nicht hineinreden.
+  q.wochenendeAnlegen("Pruefwochenende", 2);
+
+  const r1 = q.addRound({ dmName: "Mara", title: "Tag-1-Runde", vibe: "", capacity: 4 });
+  const s1 = q.addEntry({ playerName: "Sarah", preferences: [{ roundId: r1.id, level: 3 }] });
+  q.commitLauf({
+    seed: "",
+    konfiguration: { verfahren: "rsd" },
+    eingabestand: { runden: [r1], spieler: [s1] },
+    losreihenfolge: [s1.id],
+    zuordnungen: [{ playerId: s1.id, roundId: r1.id, receivedLevel: 3 }],
+  });
+  const tag1 = q.aktuellesEventId();
+
+  const weiter = q.neuerTag();
+  if (!weiter.ok) throw new Error(`neuerTag: ${weiter.fehler}`);
+  const tag2 = q.aktuellesEventId();
+  if (tag2 === tag1) throw new Error("neuerTag hat keinen neuen Tag angelegt");
+
+  q.addRound({ dmName: "Nils", title: "Tag-2-Runde", vibe: "", capacity: 4 });
+  q.addEntry({ playerName: "Paul", preferences: [] });
+
+  q.resetAll();
+
+  const zaehle = (tabelle, id) =>
+    db.prepare(`SELECT count(*) AS n FROM ${tabelle} WHERE event_id = ?`).get(id).n;
+
+  if (zaehle("runde", tag2) !== 0) throw new Error("Tag 2 hat noch Runden");
+  if (zaehle("spieler", tag2) !== 0) throw new Error("Tag 2 hat noch Spielende");
+  if (zaehle("matching_lauf", tag2) !== 0) throw new Error("Tag 2 hat noch Laeufe");
+
+  if (zaehle("runde", tag1) !== 1) throw new Error("Tag 1 hat seine Runde verloren");
+  if (zaehle("spieler", tag1) !== 1) throw new Error("Tag 1 hat seine Spielenden verloren");
+  if (zaehle("matching_lauf", tag1) !== 1) throw new Error("Tag 1 hat seinen Lauf verloren");
+
+  const zuordnungen = db
+    .prepare(
+      "SELECT count(*) AS n FROM zuordnung WHERE matching_lauf_id IN " +
+        "(SELECT id FROM matching_lauf WHERE event_id = ?)",
+    )
+    .get(tag1).n;
+  if (zuordnungen !== 1) throw new Error("Tag 1 hat seine Zuordnung verloren");
+
+  return "Tag 2 leer, Tag 1 vollstaendig";
 });
 
 closeDb();

@@ -21,7 +21,19 @@ import {
   listEntries,
   listRounds,
   resetAll,
+  tagInfo,
+  wochenendeAktualisieren,
 } from "../src/lib/db/queries.ts";
+
+/**
+ * Auch das Wochenende bekommt sinnvolle Werte. Ohne das stand ueber jedem
+ * Durchlauf "Spieleabend" oder was von Hand eingetippt worden war, und
+ * "Tag 1 von 1" verschweigt die Tagesanzeige und den Tageswechsel komplett —
+ * also ausgerechnet die Teile, die man beim Durchspielen sehen will.
+ *
+ * Drei Tage wie das echte Format (Fr/Sa/So ab dem 20.11.).
+ */
+const WOCHENENDE = { name: "Novemberwochenende", tage: 3 };
 
 const RUNDEN = [
   { dmName: "Mara", title: "Der Turm zu Kaltbruch", vibe: "duester, viel Reden", capacity: 5 },
@@ -92,6 +104,11 @@ const NUR_RUNDEN = process.argv.includes("--nur-runden");
 
 resetAll();
 
+// Schlaegt fehl, wenn schon mehr Tage angelegt sind als hier stehen — dann
+// bleibt der bestehende Name stehen, statt den Seed abzubrechen.
+const wochenende = wochenendeAktualisieren(WOCHENENDE.name, WOCHENENDE.tage);
+if (!wochenende.ok) console.log(`Wochenende unveraendert: ${wochenende.fehler}`);
+
 // Nicht point-free: map() reicht den Index als zweites Argument durch, und das
 // landete im optionalen db-Parameter.
 const runden = RUNDEN.map((r) => addRound(r));
@@ -107,8 +124,11 @@ const spieler = listEntries();
 const plaetze = listRounds().reduce((summe, r) => summe + r.capacity, 0);
 const eingereicht = spieler.filter((s) => s.submittedAt !== null).length;
 
+const tag = tagInfo();
+
 console.log(
-  `Seed fertig: ${runden.length} Runden, ${plaetze} Plaetze, ${spieler.length} Spielende ` +
+  `Seed fertig: "${tag.name}", Tag ${tag.tag} von ${tag.tage} — ${runden.length} Runden, ` +
+    `${plaetze} Plaetze, ${spieler.length} Spielende ` +
     `(${eingereicht} mit Einreichung, ${spieler.length - eingereicht} ohne).`,
 );
 
