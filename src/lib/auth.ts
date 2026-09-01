@@ -35,9 +35,9 @@ export function passwortSetzen(passwort: string): void {
 /**
  * Erstes Passwort aus der Umgebung uebernehmen, falls noch keins gesetzt ist.
  *
- * Damit gibt es im Betrieb **nie** einen offenen Einrichtungs-Endpunkt: auf
- * Railway setzt man `PRS_ADMIN_PASSWORT` im Dashboard, lokal in `.env.local`
- * (von `.gitignore` als `.env*` abgedeckt). Ist nichts gesetzt, bleibt das
+ * Damit gibt es im Betrieb **nie** einen offenen Einrichtungs-Endpunkt:
+ * `PRS_ADMIN_PASSWORT` steht in `.env.local` (von `.gitignore` als `.env*`
+ * abgedeckt), auf einem gehosteten Rueckfallweg im Dashboard des Anbieters. Ist nichts gesetzt, bleibt das
  * Formular — bequem daheim, und seit `resetAll()` das Passwort stehen laesst
  * ist dieses Fenster nur noch der allererste Start.
  *

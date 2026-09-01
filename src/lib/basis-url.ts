@@ -12,18 +12,22 @@
  * 1. `PRS_BASIS_URL`, falls gesetzt. Das ist die verlaessliche Variante fuer
  *    den Ausdruck: einmal auf die endgueltige Adresse gesetzt, kann sie nicht
  *    mehr davon abhaengen, ueber welchen Weg gerade jemand die Seite aufruft.
- * 2. Sonst aus den Kopfzeilen der Anfrage. Hinter Railways Proxy stehen die
- *    echten Werte in `x-forwarded-host`/`x-forwarded-proto`; `host` ist dort
- *    die interne Adresse und waere unbrauchbar.
+ * 2. Sonst aus den Kopfzeilen der Anfrage. Hinter einem Proxy oder Tunnel
+ *    stehen die echten Werte in `x-forwarded-host`/`x-forwarded-proto`; `host`
+ *    ist dort die interne Adresse und waere unbrauchbar. Seit dem 01.09. ist
+ *    das vor allem der Wegwerf-Tunnel zum Testen von aussen — und weil die
+ *    Adresse hier aus der laufenden Anfrage kommt, macht es nichts, dass der
+ *    Tunnel bei jedem Start eine neue vergibt.
  *
  * `erreichbarkeit` sagt, wer diese Adresse aufrufen kann. **Drei** Stufen und
  * nicht zwei, weil das Heimnetz hier ein regulaerer Betriebsmodus ist:
  *
  * - `nur-dieser-rechner` — `localhost`. Ein Handy kommt hier nie hinein.
  *   Immer falsch, egal wofuer.
- * - `heimnetz` — private Adresse wie `192.168.0.12`. Fuer den
- *   **Laptop-Notausgang** genau richtig, und auch fuer eine Probe mit dem
- *   eigenen Handy. Nur zum Drucken fuer den Railway-Betrieb taugt sie nicht.
+ * - `heimnetz` — private Adresse wie `192.168.0.12`. **Seit dem 01.09. der
+ *   Normalfall**, nicht mehr der Notausgang: der Eventbetrieb laeuft ueber den
+ *   Laptop im eigenen WLAN. Auch fuer eine Probe mit dem eigenen Handy richtig.
+ *   Nur fuer einen Zugriff von ausserhalb des WLANs taugt sie nicht.
  * - `oeffentlich` — von ueberall erreichbar.
  *
  * Zwei Stufen waeren hier eine Falschaussage: sie wuerden die Heimnetz-Probe
