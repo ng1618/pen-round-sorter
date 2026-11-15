@@ -1,11 +1,15 @@
 "use client";
 
 import { useState } from "react";
+import { PASSWORT_MINDESTLAENGE } from "@/lib/anmeldung";
 
 export default function AnmeldeFormular({ ersteinrichtung }: { ersteinrichtung: boolean }) {
   const [passwort, setPasswort] = useState("");
   const [fehler, setFehler] = useState<string | null>(null);
   const [laeuft, setLaeuft] = useState(false);
+  // Die Mindestlaenge gilt nur beim Setzen. Ein frueher gesetztes kuerzeres
+  // Passwort muss sich weiter anmelden koennen.
+  const mindestens = ersteinrichtung ? PASSWORT_MINDESTLAENGE : 1;
 
   async function absenden(e: React.FormEvent) {
     e.preventDefault();
@@ -23,7 +27,7 @@ export default function AnmeldeFormular({ ersteinrichtung }: { ersteinrichtung: 
       window.location.reload();
       return;
     }
-    const { fehler: text } = await res.json();
+    const { fehler: text } = await res.json().catch(() => ({}));
     setFehler(text ?? "Anmeldung fehlgeschlagen.");
     setLaeuft(false);
   }
@@ -34,7 +38,7 @@ export default function AnmeldeFormular({ ersteinrichtung }: { ersteinrichtung: 
         <h1 className="text-2xl font-bold">🏰 {ersteinrichtung ? "Ersteinrichtung" : "Verwaltung"}</h1>
         <p className="mt-2 text-muted">
           {ersteinrichtung
-            ? "Es ist noch kein Passwort gesetzt. Das erste, das du hier einträgst, gilt ab sofort."
+            ? `Es ist noch kein Passwort gesetzt. Das erste, das du hier einträgst, gilt ab sofort — mindestens ${PASSWORT_MINDESTLAENGE} Zeichen.`
             : "Bitte das Verwaltungspasswort eingeben."}
         </p>
       </div>
@@ -49,7 +53,7 @@ export default function AnmeldeFormular({ ersteinrichtung }: { ersteinrichtung: 
             value={passwort}
             onChange={(e) => setPasswort(e.target.value)}
             required
-            minLength={4}
+            minLength={mindestens}
           />
         </label>
 
@@ -57,7 +61,7 @@ export default function AnmeldeFormular({ ersteinrichtung }: { ersteinrichtung: 
 
         <button
           type="submit"
-          disabled={laeuft || passwort.length < 4}
+          disabled={laeuft || passwort.length < mindestens}
           className="w-fit rounded-md bg-accent px-4 py-2 font-medium text-white disabled:opacity-40"
         >
           {ersteinrichtung ? "Passwort setzen" : "Anmelden"}

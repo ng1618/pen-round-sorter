@@ -3,10 +3,12 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import AdminUnterleiste from "@/components/AdminUnterleiste";
+import Bestaetigung from "@/components/Bestaetigung";
 import Fehlerhinweis from "@/components/Fehlerhinweis";
 import Kennzahlenliste from "@/components/Kennzahlenliste";
 import RundenErgebnis from "@/components/RundenErgebnis";
 import Tagesanzeige from "@/components/Tagesanzeige";
+import { vorschauVeraendert } from "@/lib/auslosung-pruefen";
 import { dataStore } from "@/lib/dataStore";
 import {
   einreichungenText,
@@ -411,12 +413,28 @@ export default function AuslosungClient() {
             >
               Protokoll herunterladen
             </button>
-            <button
-              onClick={handleAuslosen}
-              className="min-h-11 rounded-md border border-line px-4 py-2 text-sm"
-            >
-              Neu auslosen
-            </button>
+            {/* Nur bei Handarbeit nachfragen: eine frische Vorschau zu ersetzen
+                kostet nichts, und eine Rueckfrage bei jedem Klick gewoehnt nur
+                ans Wegklicken. */}
+            {vorschauVeraendert(vorschau.auslosung.konfiguration) ? (
+              <Bestaetigung
+                knopf="Neu auslosen"
+                frage={
+                  "In dieser Vorschau wurde von Hand umgesetzt, getauscht oder aufgestockt.\n" +
+                  "Ein neuer Wurf wirft das weg. Aufgestockte Plätze bleiben am Tisch stehen."
+                }
+                jaText="Ja, neu auslosen"
+                onJa={handleAuslosen}
+                className="min-h-11 rounded-md border border-line px-4 py-2 text-sm"
+              />
+            ) : (
+              <button
+                onClick={handleAuslosen}
+                className="min-h-11 rounded-md border border-line px-4 py-2 text-sm"
+              >
+                Neu auslosen
+              </button>
+            )}
             <button
               onClick={handleTausch}
               className="min-h-11 rounded-md border border-line px-4 py-2 text-sm"

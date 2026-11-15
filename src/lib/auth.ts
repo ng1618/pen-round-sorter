@@ -1,6 +1,7 @@
 import "server-only";
 import { createHmac, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
+import { passwortZuKurz, PASSWORT_MINDESTLAENGE } from "./anmeldung.ts";
 import {
   adminPasswort,
   setAdminPasswort,
@@ -49,7 +50,21 @@ export function passwortSetzen(passwort: string): void {
 function ausUmgebungUebernehmen(): void {
   const ausUmgebung = process.env.PRS_ADMIN_PASSWORT;
   if (!ausUmgebung || adminPasswort() !== null) return;
+  if (passwortZuKurz(ausUmgebung)) {
+    // Laut statt still: wer nur die Variable setzt, sieht sonst bloss ein
+    // Formular, das sein Passwort nicht annimmt.
+    console.error(
+      `PRS_ADMIN_PASSWORT hat weniger als ${PASSWORT_MINDESTLAENGE} Zeichen und wird nicht uebernommen.`,
+    );
+    return;
+  }
   passwortSetzen(ausUmgebung);
+}
+
+/** Steht ein Passwort in der Umgebung, das wegen seiner Laenge nicht uebernommen wird? */
+export function umgebungsPasswortZuKurz(): boolean {
+  const ausUmgebung = process.env.PRS_ADMIN_PASSWORT;
+  return !!ausUmgebung && passwortZuKurz(ausUmgebung);
 }
 
 export function passwortGesetzt(): boolean {
@@ -124,9 +139,13 @@ export function ueberHttps(request: Request): boolean {
  * Abmelden zaehlt die Sitzungsversion hoch — sonst waere es reine Kosmetik im
  * Browser, und eine kopierte Cookie-Kopie bliebe gueltig. Es meldet damit alle
  * Sitzungen ab; bei genau einem Wirt ist das gewollt.
+ *
+ * Hochgezaehlt wird nur aus einer **gueltigen** Sitzung heraus. Sonst koennte
+ * jeder ohne Passwort den Wirt hinauswerfen und ihn mit fuenf falschen
+ * Versuchen eine Minute aussperren — wiederholbar (Rollen-Review 15.11.).
  */
 export async function abmelden(): Promise<void> {
-  sitzungsVersionErhoehen();
+  if (await istAngemeldet()) sitzungsVersionErhoehen();
   (await cookies()).delete(COOKIE);
 }
 

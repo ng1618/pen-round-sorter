@@ -7,7 +7,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { pruefeAuslosung, standAbgleich } from "../src/lib/auslosung-pruefen.ts";
+import { pruefeAuslosung, standAbgleich, vorschauVeraendert } from "../src/lib/auslosung-pruefen.ts";
 
 const runde = (id, capacity) => ({
   id,
@@ -182,4 +182,22 @@ test("nur Dazugekommene sind 'dazu' — die bisherige Rueckfrage", () => {
   assert.equal(r.art, "dazu");
   assert.deepEqual(r.namen, ["Nachzuegler"]);
   assert.equal(r.runden, 1);
+});
+
+// --- vorschauVeraendert: Rueckfrage vor „Neu auslosen" ---------------------
+// Ein neuer Wurf ersetzt die Vorschau. Ist sie frisch, geht nichts verloren;
+// wurde von Hand umgesetzt, getauscht oder aufgestockt, schon.
+
+test("frische Vorschau gilt als unveraendert", () => {
+  assert.equal(vorschauVeraendert({ verfahren: "rsd", reihenfolge: "wunsch-zuerst" }), false);
+});
+
+test("Handkorrektur, Ringtausch oder Aufstocken gelten als Veraenderung", () => {
+  assert.equal(vorschauVeraendert({ manuellKorrigiert: true }), true);
+  assert.equal(vorschauVeraendert({ tauschrunden: 2 }), true);
+  assert.equal(vorschauVeraendert({ plaetzeNachtraeglich: [{ titel: "A", von: 5, auf: 6 }] }), true);
+});
+
+test("leere oder genullte Angaben gelten nicht als Veraenderung", () => {
+  assert.equal(vorschauVeraendert({ manuellKorrigiert: false, tauschrunden: 0, plaetzeNachtraeglich: [] }), false);
 });
