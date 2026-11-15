@@ -48,6 +48,23 @@ export function standAbgleich(
 }
 
 /**
+ * Steckt in dieser Vorschau Handarbeit, die ein neuer Wurf wegwerfen wuerde?
+ *
+ * Grundlage der Rueckfrage vor „Neu auslosen". Eine frische Vorschau zu
+ * ersetzen kostet nichts — dort zu fragen, gewoehnt nur ans Wegklicken.
+ * Gelesen wird, was die Oberflaeche beim Umsetzen, Tauschen und Aufstocken
+ * ohnehin in die Konfiguration schreibt, damit es im Protokoll steht.
+ */
+export function vorschauVeraendert(konfiguration: Record<string, unknown>): boolean {
+  const aufgestockt = konfiguration.plaetzeNachtraeglich;
+  return (
+    konfiguration.manuellKorrigiert === true ||
+    (typeof konfiguration.tauschrunden === "number" && konfiguration.tauschrunden > 0) ||
+    (Array.isArray(aufgestockt) && aufgestockt.length > 0)
+  );
+}
+
+/**
  * Prüft eine Auslosung gegen **ihren eigenen Schnappschuss**, nicht gegen den
  * Live-Stand — was gespeichert wird, muss in sich stimmig sein.
  *

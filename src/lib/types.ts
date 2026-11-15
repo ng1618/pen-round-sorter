@@ -45,7 +45,8 @@ export type PlayerEntry = {
 /**
  * Anwesenheit ueber die Tage und Mehrfach-Alarm, je Person des aktuellen Tages.
  * Nur fuer die Verwaltung (`GET /api/teilnehmerliste` ist geschlossen) — darum
- * nicht an `PlayerEntry`, das ueber die offene Route `/api/entries` geht.
+ * nicht an `PlayerEntry`, das bis zum 15.11. ueber die offene Route
+ * `GET /api/entries` ging (seitdem ebenfalls geschlossen).
  */
 export type Teilnehmerliste = {
   /** Der aktuelle Tag; spaetere Tage werden nicht angezeigt. */
