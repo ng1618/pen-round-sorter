@@ -9,6 +9,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   MAX_NAME,
+  gleicheRunde,
   MAX_RUNDEN,
   pruefeEinreichung,
   pruefeRunde,
@@ -105,4 +106,25 @@ test("Einreichung: 5000-Zeichen-Name kommt nicht mehr durch", () => {
   const e = pruefeEinreichung({ playerName: "A".repeat(5000) }, RUNDEN, 0);
   assert.equal(e.ok, false);
   assert.match(e.fehler, /zu lang/);
+});
+
+// Doppeltipp auf /dm (E2E-Fund vom 15.11.): zwei identische POSTs legten zwei
+// Runden an — ein Phantomtisch mit fuenf Plaetzen.
+
+const vorhanden = [{ id: 7, dmName: "Mara", title: "Der Turm", vibe: "", capacity: 5, createdAt: 0 }];
+
+test("gleiche Leitung und gleicher Titel finden die vorhandene Runde", () => {
+  assert.equal(gleicheRunde(vorhanden, { dmName: "Mara", title: "Der Turm" })?.id, 7);
+});
+
+test("Gross-/Kleinschreibung und Leerzeichen zaehlen nicht", () => {
+  assert.equal(gleicheRunde(vorhanden, { dmName: " mara", title: "der  turm " })?.id, 7);
+});
+
+test("anderer Titel derselben Leitung ist eine neue Runde", () => {
+  assert.equal(gleicheRunde(vorhanden, { dmName: "Mara", title: "Der Sumpf" }), undefined);
+});
+
+test("gleicher Titel einer anderen Leitung ist eine neue Runde", () => {
+  assert.equal(gleicheRunde(vorhanden, { dmName: "Nils", title: "Der Turm" }), undefined);
 });

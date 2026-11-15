@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Fehlerhinweis from "@/components/Fehlerhinweis";
 import Tagesanzeige from "@/components/Tagesanzeige";
 import { dataStore } from "@/lib/dataStore";
@@ -17,6 +17,14 @@ export default function DmPage() {
   /** Nach dem Absenden die eingetragene Runde — dient zugleich als Gegenlesen. */
   const [eingetragen, setEingetragen] = useState<Round | null>(null);
   const [fehler, setFehler] = useState<string | null>(null);
+  /**
+   * Gegen den Doppeltipp (E2E-Fund 15.11.). Ein Ref statt nur State: der
+   * zweite Klick kommt, bevor React neu gezeichnet hat, und saehe den alten
+   * State noch. Die Route faengt eine Wiederholung ohnehin ab — das hier
+   * spart nur die zweite Anfrage.
+   */
+  const sendet = useRef(false);
+  const [sendetAnzeige, setSendetAnzeige] = useState(false);
 
   useEffect(() => {
     dataStore
@@ -28,6 +36,9 @@ export default function DmPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!dmName.trim() || !title.trim() || capacity < 1) return;
+    if (sendet.current) return;
+    sendet.current = true;
+    setSendetAnzeige(true);
 
     setFehler(null);
     let angelegt: Round;
@@ -42,6 +53,9 @@ export default function DmPage() {
     } catch (e) {
       setFehler(`Runde konnte nicht eingetragen werden: ${e instanceof Error ? e.message : String(e)}`);
       return;
+    } finally {
+      sendet.current = false;
+      setSendetAnzeige(false);
     }
     setTitle("");
     setVibe("");
@@ -149,9 +163,10 @@ export default function DmPage() {
 
         <button
           type="submit"
-          className="mt-2 rounded-md bg-accent px-4 py-2 font-medium text-white"
+          disabled={sendetAnzeige}
+          className="mt-2 rounded-md bg-accent px-4 py-2 font-medium text-white disabled:opacity-40"
         >
-          Runde eintragen
+          {sendetAnzeige ? "Wird eingetragen …" : "Runde eintragen"}
         </button>
 
       </form>

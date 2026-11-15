@@ -1,6 +1,16 @@
 import { LEVEL_STANDARD, type RoundPreference } from "./types.ts";
 
 /**
+ * Dieselbe Normalisierung wie in DATENBANK.md, Abschnitt 4.2 — die Identitaet
+ * einer Person innerhalb eines Tages. Liegt hier statt in `queries.ts`, weil
+ * auch die Schranke vor dem Festlegen sie braucht und die ohne Datenbank
+ * pruefbar bleiben soll.
+ */
+export function nameKey(name: string): string {
+  return name.trim().replace(/\s+/g, " ").toLocaleLowerCase("de-DE");
+}
+
+/**
  * Hat eine erneute Einreichung das Ranking wirklich geaendert?
  *
  * Grundlage des Mehrfach-Alarms. Verglichen werden nur die **Abweichungen vom

@@ -7,7 +7,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { pruefeAuslosung } from "../src/lib/auslosung-pruefen.ts";
+import { pruefeAuslosung, standAbgleich } from "../src/lib/auslosung-pruefen.ts";
 
 const runde = (id, capacity) => ({
   id,
@@ -120,4 +120,66 @@ test("unvollstaendige Eingaben stuerzen nicht ab", () => {
   for (const kaputt of [undefined, {}, { eingabestand: {} }, { eingabestand: { runden: [], spieler: [] } }]) {
     assert.match(pruefeAuslosung(kaputt), /unvollstaendig/);
   }
+});
+
+// ---------------------------------------------------------------------------
+// Abgleich mit dem Live-Stand vor dem Festlegen (E2E-Fund vom 15.11.).
+//
+// Bis dahin verglich `commit` nur die ANZAHL. Entfernt man nach dem Auslosen
+// die zuletzt eingereichte Person und reicht jemand Neues ein, bleibt die Zahl
+// gleich — und SQLite vergibt die frei gewordene Id neu. Der Lauf trug dann im
+// Schnappschuss die alte Person, in der Zuordnung die neue, die nie mitgelost
+// wurde. War die Id nicht die letzte, scheiterte das Festlegen mit einem 500.
+
+const benannt = (id, playerName) => ({ ...person(id), playerName });
+
+test("unveraenderter Stand ist gleich", () => {
+  const r = standAbgleich({ runden: [runde(1, 5)], spieler: [person(1), person(2)] }, [runde(1, 5)], [person(1), person(2)]);
+  assert.equal(r.art, "gleich");
+});
+
+test("dieselbe Id mit anderem Namen ist ersetzt, nicht gleich", () => {
+  const r = standAbgleich(
+    { runden: [runde(1, 5)], spieler: [benannt(1, "Anna"), benannt(2, "Wegwerf")] },
+    [runde(1, 5)],
+    [benannt(1, "Anna"), benannt(2, "Spaet")],
+  );
+  assert.equal(r.art, "fehlt");
+  assert.deepEqual(r.namen, ["Wegwerf"]);
+});
+
+test("Gross-/Kleinschreibung und Leerzeichen im Namen sind keine Ersetzung", () => {
+  // Der Upsert darf "Sarah" durch "SARAH " ersetzen — gleiche Person, gleiche Id.
+  const r = standAbgleich(
+    { runden: [runde(1, 5)], spieler: [benannt(1, "Sarah")] },
+    [runde(1, 5)],
+    [benannt(1, "SARAH ")],
+  );
+  assert.equal(r.art, "gleich");
+});
+
+test("entfernte Person fehlt, auch wenn die Anzahl gleich bleibt", () => {
+  const r = standAbgleich(
+    { runden: [runde(1, 5)], spieler: [benannt(1, "Anna"), benannt(2, "Ben")] },
+    [runde(1, 5)],
+    [benannt(1, "Anna"), benannt(3, "Cleo")],
+  );
+  assert.equal(r.art, "fehlt");
+  assert.deepEqual(r.namen, ["Ben"]);
+});
+
+test("verschwundene Runde fehlt", () => {
+  const r = standAbgleich({ runden: [runde(1, 5), runde(2, 5)], spieler: [person(1)] }, [runde(1, 5)], [person(1)]);
+  assert.equal(r.art, "fehlt");
+});
+
+test("nur Dazugekommene sind 'dazu' — die bisherige Rueckfrage", () => {
+  const r = standAbgleich(
+    { runden: [runde(1, 5)], spieler: [benannt(1, "Anna")] },
+    [runde(1, 5), runde(2, 5)],
+    [benannt(1, "Anna"), benannt(2, "Nachzuegler")],
+  );
+  assert.equal(r.art, "dazu");
+  assert.deepEqual(r.namen, ["Nachzuegler"]);
+  assert.equal(r.runden, 1);
 });

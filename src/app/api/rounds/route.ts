@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { dbStore } from "@/lib/dbStore";
-import { pruefeRunde } from "@/lib/eingabe";
+import { gleicheRunde, pruefeRunde, pruefeRundenFelder } from "@/lib/eingabe";
 
 export async function GET() {
   return NextResponse.json(await dbStore.listRounds());
@@ -16,6 +16,14 @@ export async function POST(request: Request) {
   }
 
   const vorhandene = await dbStore.listRounds();
+  // Vor der Obergrenze pruefen: ein Doppeltipp bei 20 Runden soll die vorhandene
+  // Runde bestaetigen, nicht "ausgebucht" melden.
+  const felder = pruefeRundenFelder(rumpf);
+  if (felder.ok) {
+    const schonDa = gleicheRunde(vorhandene, felder.wert);
+    if (schonDa) return NextResponse.json(schonDa);
+  }
+
   const geprueft = pruefeRunde(rumpf, vorhandene.length);
   if (!geprueft.ok) return NextResponse.json({ fehler: geprueft.fehler }, { status: 400 });
 
