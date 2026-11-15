@@ -192,6 +192,15 @@ const MIGRATIONS: Array<(db: Database.Database) => void> = [
   // hinzugefuegte Einstellung bestehende Zeilen nicht.
   (db) =>
     db.exec("ALTER TABLE wochenende ADD COLUMN einstellungen TEXT NOT NULL DEFAULT '{}'"),
+
+  // Schritt 6 (15.11.): Mehrfach-Alarm.
+  //
+  // Wie oft eine Einreichung eine fruehere mit **anderem** Ranking ersetzt hat.
+  // Die einzige gespeicherte Groesse aus Phase 4: der Upsert in `addEntry`
+  // ueberschreibt, und ob er dabei etwas veraendert hat, laesst sich hinterher
+  // nicht mehr berechnen. Die Teilnehmerliste dagegen wird berechnet, nicht
+  // gespeichert (`teilnehmerliste()` in queries.ts).
+  (db) => db.exec("ALTER TABLE spieler ADD COLUMN aenderungen INTEGER NOT NULL DEFAULT 0"),
 ];
 
 /**

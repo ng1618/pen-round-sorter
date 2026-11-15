@@ -7,7 +7,14 @@ import Bestaetigung from "@/components/Bestaetigung";
 import Fehlerhinweis from "@/components/Fehlerhinweis";
 import Tagesanzeige from "@/components/Tagesanzeige";
 import { dataStore } from "@/lib/dataStore";
-import { LEVELS, LEVEL_STANDARD, type Assignment, type PlayerEntry, type Round } from "@/lib/types";
+import {
+  LEVELS,
+  LEVEL_STANDARD,
+  type Assignment,
+  type PlayerEntry,
+  type Round,
+  type Teilnehmerliste,
+} from "@/lib/types";
 
 type RundenFelder = { dmName: string; title: string; vibe: string; capacity: number };
 type TagInfo = { name: string; tag: number; tage: number };
@@ -25,6 +32,7 @@ export default function TresenClient() {
   const [entries, setEntries] = useState<PlayerEntry[]>([]);
   const [assignments, setAssignments] = useState<Assignment[] | null>(null);
   const [tagInfo, setTagInfo] = useState<TagInfo | null>(null);
+  const [teilnehmer, setTeilnehmer] = useState<Teilnehmerliste | null>(null);
   const [fehler, setFehler] = useState<string | null>(null);
   /**
    * Erst nach dem ersten Laden darf der Tresen behaupten, was zu tun ist.
@@ -39,6 +47,9 @@ export default function TresenClient() {
     setRounds(await dataStore.listRounds());
     setEntries(await dataStore.listEntries());
     setAssignments(await dataStore.getAssignments());
+    // Reine Zusatzinformation: faellt sie aus, bleibt der Tresen bedienbar.
+    const tl = await fetch("/api/teilnehmerliste");
+    setTeilnehmer(tl.ok ? ((await tl.json()) as Teilnehmerliste) : null);
     setGeladen(true);
   }
 
@@ -103,6 +114,12 @@ export default function TresenClient() {
   }
 
   const roundsById = new Map(rounds.map((r) => [r.id, r]));
+  const teilnehmerById = new Map(teilnehmer?.eintraege.map((t) => [t.spielerId, t]) ?? []);
+  // Bei einem Wochenende aus einem Tag sagt die Zeile nichts.
+  const tageBisHeute =
+    teilnehmer && (tagInfo?.tage ?? 1) > 1
+      ? Array.from({ length: teilnehmer.tag }, (_, i) => i + 1)
+      : [];
 
   // Jede Zeile in `spieler` ist ein Platzbedarf — auch wer sich nur angemeldet
   // und noch nichts gerankt hat. Genau deshalb ist die Anzeige dauerhaft
@@ -185,6 +202,22 @@ export default function TresenClient() {
                             }`,
                         )
                         .join(" · ")}
+                    </span>
+                  )}
+                  {tageBisHeute.length > 0 && (
+                    <span className="block text-xs text-muted">
+                      {tageBisHeute
+                        .map(
+                          (t) =>
+                            `Tag ${t} ${teilnehmerById.get(e.id)?.tage.includes(t) ? "✓" : "–"}`,
+                        )
+                        .join(" · ")}
+                    </span>
+                  )}
+                  {(teilnehmerById.get(e.id)?.aenderungen ?? 0) > 0 && (
+                    <span className="block text-xs text-red-700">
+                      ⚠️ Ranking {teilnehmerById.get(e.id)?.aenderungen}× geändert — gleiche Person
+                      oder Namensgleichheit?
                     </span>
                   )}
                 </span>

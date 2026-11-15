@@ -244,8 +244,8 @@ export default function EinstellungenClient() {
                   Topwunsch nicht bekam, wird später früher gezogen.
                   <span className="mt-1 block text-muted">
                     Verschiebt nur die Reihenfolge; ein Anspruch auf den Wunschtisch ist es nicht.
-                    Braucht eine Teilnehmerliste, um dieselbe Person über mehrere Tage
-                    wiederzuerkennen — noch nicht gebaut, deshalb abgeschaltet.
+                    Für dieses Wochenende bewusst nicht gebaut und deshalb abgeschaltet;
+                    kommt frühestens nach dem Event.
                   </span>
                 </span>
               </label>

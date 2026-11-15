@@ -42,6 +42,23 @@ export type PlayerEntry = {
   createdAt: number;
 };
 
+/**
+ * Anwesenheit ueber die Tage und Mehrfach-Alarm, je Person des aktuellen Tages.
+ * Nur fuer die Verwaltung (`GET /api/teilnehmerliste` ist geschlossen) — darum
+ * nicht an `PlayerEntry`, das ueber die offene Route `/api/entries` geht.
+ */
+export type Teilnehmerliste = {
+  /** Der aktuelle Tag; spaetere Tage werden nicht angezeigt. */
+  tag: number;
+  eintraege: Array<{
+    spielerId: number;
+    /** Tage dieses Wochenendes mit gleichem Namen, aufsteigend, einschliesslich heute. */
+    tage: number[];
+    /** Wie oft eine Einreichung eine fruehere mit anderem Ranking ersetzt hat. */
+    aenderungen: number;
+  }>;
+};
+
 export type Assignment = {
   playerId: number;
   /** null heisst wirklich Unterdeckung — nie mehr „hat zu wenig gerankt". */
@@ -73,8 +90,8 @@ export type Einstellungen = {
   verfahren: Verfahren;
   /**
    * Wer an einem frueheren Tag seinen Topwunsch nicht bekam, wird spaeter
-   * frueher gezogen. Noch ohne Wirkung — die Umsetzung braucht die
-   * Teilnehmerliste (Phase 4).
+   * frueher gezogen. Ohne Wirkung: am 15.11. bewusst nicht gebaut, bleibt am
+   * Event aus (ENTSCHEIDUNGEN.md). Die Teilnehmerliste dafuer steht.
    */
   ausgleichUeberTage: boolean;
 };
