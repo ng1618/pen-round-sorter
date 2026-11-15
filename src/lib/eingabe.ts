@@ -1,4 +1,5 @@
-import { LEVELS, LEVEL_TOP, type Level, type RoundPreference } from "./types.ts";
+import { nameKey } from "./einreichung.ts";
+import { LEVELS, LEVEL_TOP, type Level, type Round, type RoundPreference } from "./types.ts";
 
 /**
  * Pruefung an der Routengrenze — fuer die beiden Routen, die **ohne Anmeldung**
@@ -147,4 +148,27 @@ export function pruefeEinreichung(
   }
 
   return { ok: true, wert: { playerName: playerName.wert, preferences } };
+}
+
+/**
+ * Gibt es diese Runde heute schon? Gleiche Leitung und gleicher Titel,
+ * normalisiert wie Namen.
+ *
+ * Gegen den Doppeltipp auf /dm (E2E-Fund vom 15.11.): bei langsamem Netz kamen
+ * zwei identische POSTs an, und es entstand ein Phantomtisch mit fuenf
+ * Plaetzen, an den die Auslosung Leute setzte. Die Route gibt bei einem Treffer
+ * die **vorhandene** Runde zurueck, statt eine zweite anzulegen — die Leitung
+ * sieht ihre Bestaetigung ganz normal.
+ *
+ * Bewusst ohne Platzzahl und Stimmung im Vergleich: wer dieselbe Runde mit
+ * anderer Platzzahl noch einmal eintraegt, meint eine Korrektur, keinen
+ * zweiten Tisch. Korrigiert wird am Tresen.
+ */
+export function gleicheRunde(
+  vorhandene: Round[],
+  neu: { dmName: string; title: string },
+): Round | undefined {
+  const leitung = nameKey(neu.dmName);
+  const titel = nameKey(neu.title);
+  return vorhandene.find((r) => nameKey(r.dmName) === leitung && nameKey(r.title) === titel);
 }

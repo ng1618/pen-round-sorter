@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import type Database from "better-sqlite3";
 import { getDb } from "./connection.ts";
-import { rankingGeaendert } from "../einreichung.ts";
+import { nameKey, rankingGeaendert } from "../einreichung.ts";
 import {
   EINSTELLUNGEN_STANDARD,
   LEVEL_STANDARD,
@@ -52,10 +52,9 @@ function nachIso(millisekunden: number): string {
   return new Date(millisekunden).toISOString();
 }
 
-/** Dieselbe Normalisierung wie in DATENBANK.md, Abschnitt 4.2. */
-export function nameKey(name: string): string {
-  return name.trim().replace(/\s+/g, " ").toLocaleLowerCase("de-DE");
-}
+// Wohnt in `einreichung.ts` (rein, ohne Datenbank); hier weitergereicht, damit
+// bestehende Aufrufer unveraendert bleiben.
+export { nameKey };
 
 /**
  * Muss **unratbar** sein — das ist der ganze Zweck der Tokens fuer `/dm` und
