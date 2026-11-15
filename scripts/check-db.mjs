@@ -261,6 +261,64 @@ pruefe("Zuruecksetzen laesst fruehere Tage unangetastet", () => {
   return "Tag 2 leer, Tag 1 vollstaendig";
 });
 
+// Phase 4 (15.11.): Mehrfach-Alarm und Teilnehmerliste.
+
+pruefe("Mehrfach-Alarm zaehlt nur geaenderte Rankings", () => {
+  q.wochenendeAnlegen("Alarmwochenende", 1);
+  const r1 = q.addRound({ dmName: "Mara", title: "A", vibe: "", capacity: 5 });
+  const r2 = q.addRound({ dmName: "Nils", title: "B", vibe: "", capacity: 5 });
+  const aenderungen = (name) =>
+    db
+      .prepare("SELECT aenderungen FROM spieler WHERE event_id = ? AND name_key = ?")
+      .get(q.aktuellesEventId(), nameKey(name)).aenderungen;
+
+  // Netz gewackelt: zweimal dasselbe, "geht auch" einmal ausdruecklich.
+  q.addEntry({ playerName: "Ida", preferences: [{ roundId: r1.id, level: 3 }] });
+  q.addEntry({
+    playerName: "ida ",
+    preferences: [
+      { roundId: r1.id, level: 3 },
+      { roundId: r2.id, level: 1 },
+    ],
+  });
+  if (aenderungen("Ida") !== 0) throw new Error("gleiches Ranking wurde als Aenderung gezaehlt");
+
+  q.addEntry({ playerName: "Ida", preferences: [{ roundId: r2.id, level: 3 }] });
+  if (aenderungen("Ida") !== 1) throw new Error("geaendertes Ranking wurde nicht gezaehlt");
+
+  // Am Tresen angelegt, dann selbst eingereicht: erste Einreichung, keine Aenderung.
+  q.addSpielerOhneEinreichung("Cem");
+  q.addEntry({ playerName: "Cem", preferences: [{ roundId: r1.id, level: 3 }] });
+  if (aenderungen("Cem") !== 0) throw new Error("Erst-Einreichung nach Anlegen wurde gezaehlt");
+
+  return "gleich 0, geaendert 1, nach Anlegen 0";
+});
+
+pruefe("Teilnehmerliste kennt die Tage des Wochenendes", () => {
+  q.wochenendeAnlegen("Anwesenheitswochenende", 3);
+  // Tag 1: Bo und Yara
+  q.addEntry({ playerName: "Bo", preferences: [] });
+  q.addEntry({ playerName: "Yara", preferences: [] });
+  if (!q.neuerTag().ok) throw new Error("Tag 2 nicht angelegt");
+  // Tag 2: nur Yara (Bo leitet)
+  q.addEntry({ playerName: "Yara", preferences: [] });
+  if (!q.neuerTag().ok) throw new Error("Tag 3 nicht angelegt");
+  // Tag 3: Bo wieder, Yara, dazu Fenja neu
+  const bo = q.addEntry({ playerName: "bo", preferences: [] });
+  const yara = q.addEntry({ playerName: "Yara", preferences: [] });
+  const fenja = q.addEntry({ playerName: "Fenja", preferences: [] });
+
+  const liste = q.teilnehmerliste();
+  if (liste.tag !== 3) throw new Error(`tag ist ${liste.tag}, erwartet 3`);
+  const tage = (id) => liste.eintraege.find((e) => e.spielerId === id)?.tage.join(",");
+  if (tage(bo.id) !== "1,3") throw new Error(`Bo: ${tage(bo.id)}`);
+  if (tage(yara.id) !== "1,2,3") throw new Error(`Yara: ${tage(yara.id)}`);
+  if (tage(fenja.id) !== "3") throw new Error(`Fenja: ${tage(fenja.id)}`);
+  if (liste.eintraege.length !== 3) throw new Error("fremde Wochenenden oder Tage mitgezaehlt");
+
+  return "Bo 1,3 · Yara 1,2,3 · Fenja 3; andere Wochenenden bleiben draussen";
+});
+
 closeDb();
 console.log(fehler === 0 ? "\nAlles gruen." : `\n${fehler} Pruefung(en) fehlgeschlagen.`);
 process.exit(fehler === 0 ? 0 : 1);

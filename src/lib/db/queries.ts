@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import type Database from "better-sqlite3";
 import { getDb } from "./connection.ts";
+import { rankingGeaendert } from "../einreichung.ts";
 import {
   EINSTELLUNGEN_STANDARD,
   LEVEL_STANDARD,
@@ -9,6 +10,7 @@ import {
   type Level,
   type PlayerEntry,
   type Round,
+  type Teilnehmerliste,
 } from "../types.ts";
 
 /**
@@ -340,6 +342,45 @@ export function listEntries(db: Database.Database = getDb()): PlayerEntry[] {
 }
 
 /**
+ * Wer an welchem Tag dieses Wochenendes dabei war — fuer jede Person des
+ * aktuellen Tages.
+ *
+ * **Berechnet, nicht gespeichert.** Identitaet ueber die Tage ist der gleiche
+ * `name_key` innerhalb desselben Wochenendes; eine gespeicherte Verknuepfung
+ * muesste bei jedem Entfernen und jedem „Tag neu aufsetzen" mitgepflegt werden.
+ * Grenze: wer sich am zweiten Tag anders schreibt, gilt als neue Person, und
+ * zwei Menschen mit gleichem Namen gelten als eine.
+ *
+ * „Dabei" heisst: hatte an dem Tag eine Zeile in `spieler`. Wer an einem Tag
+ * leitet, hat dort keine — und taucht an diesem Tag folgerichtig als „–" auf.
+ */
+export function teilnehmerliste(db: Database.Database = getDb()): Teilnehmerliste {
+  const eventId = aktuellesEventId(db);
+  const zeilen = db
+    .prepare(
+      "SELECT s.id, s.aenderungen, group_concat(e2.tag) AS tage " +
+        "FROM spieler s " +
+        "JOIN event e ON e.id = s.event_id " +
+        "JOIN event e2 ON e2.wochenende_id = e.wochenende_id " +
+        "JOIN spieler s2 ON s2.event_id = e2.id AND s2.name_key = s.name_key " +
+        "WHERE s.event_id = ? GROUP BY s.id ORDER BY s.id",
+    )
+    .all(eventId) as Array<{ id: number; aenderungen: number; tage: string }>;
+
+  return {
+    tag: tagInfo(db).tag,
+    eintraege: zeilen.map((z) => ({
+      spielerId: z.id,
+      tage: z.tage
+        .split(",")
+        .map(Number)
+        .sort((a, b) => a - b),
+      aenderungen: z.aenderungen,
+    })),
+  };
+}
+
+/**
  * Eine Einreichung. Upsert auf `(event_id, name_key)`, damit doppeltes
  * Absenden die erste Einreichung ersetzt statt einen zweiten Spieler
  * anzulegen — und `RETURNING id`, weil `lastInsertRowid` bei `DO UPDATE` nicht
@@ -353,15 +394,41 @@ export function addEntry(
   const jetzt = nachIso(Date.now());
 
   const schreiben = db.transaction((): PlayerEntry => {
+    // Vor dem Upsert lesen, was bisher eingereicht war — danach ist es weg.
+    // Wer nur angelegt war (`abgegeben_am IS NULL`), reicht jetzt zum ersten
+    // Mal ein; das ist keine Aenderung.
+    const bisher = db
+      .prepare(
+        "SELECT id FROM spieler WHERE event_id = ? AND name_key = ? AND abgegeben_am IS NOT NULL",
+      )
+      .get(eventId, nameKey(eingabe.playerName)) as { id: number } | undefined;
+    const geaendert =
+      bisher !== undefined &&
+      rankingGeaendert(
+        (
+          db
+            .prepare("SELECT runden_id, gewicht FROM spieler_gewicht WHERE spieler_id = ?")
+            .all(bisher.id) as Array<{ runden_id: number; gewicht: Level }>
+        ).map((g) => ({ roundId: g.runden_id, level: g.gewicht })),
+        eingabe.preferences,
+      );
+
     const { id } = db
       .prepare(
         "INSERT INTO spieler (event_id, name, name_key, abgegeben_am, erstellt_am) " +
           "VALUES (@eventId, @name, @nameKey, @jetzt, @jetzt) " +
           "ON CONFLICT (event_id, name_key) DO UPDATE SET " +
-          "  name = excluded.name, abgegeben_am = excluded.abgegeben_am " +
+          "  name = excluded.name, abgegeben_am = excluded.abgegeben_am, " +
+          "  aenderungen = aenderungen + @plus " +
           "RETURNING id",
       )
-      .get({ eventId, name: eingabe.playerName, nameKey: nameKey(eingabe.playerName), jetzt }) as {
+      .get({
+        eventId,
+        name: eingabe.playerName,
+        nameKey: nameKey(eingabe.playerName),
+        jetzt,
+        plus: geaendert ? 1 : 0,
+      }) as {
       id: number;
     };
 
