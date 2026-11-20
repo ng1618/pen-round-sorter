@@ -1,19 +1,11 @@
 import type { Metadata } from "next";
-import { Inter, Space_Grotesk } from "next/font/google";
+// Schriften als npm-Pakete statt next/font/google (20.11.): der Railway-Build
+// brach in der Google-Schriften-Pipeline von Turbopack ab ("next/font/google
+// queries have exactly one entry"), lokal lief er durch. So liegen die
+// Dateien im Projekt, und beim Bauen wird nichts aus dem Netz geholt.
+import "@fontsource-variable/inter";
+import "@fontsource-variable/space-grotesk";
 import "./globals.css";
-
-// Schrift "klar" (20.11.): Space Grotesk fuer Ueberschriften, Inter fuer Text.
-const ueberschrift = Space_Grotesk({
-  variable: "--font-heading",
-  subsets: ["latin"],
-  weight: ["500", "600", "700"],
-});
-
-const text = Inter({
-  variable: "--font-body",
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
-});
 
 export const metadata: Metadata = {
   title: "Rundenverteiler",
@@ -28,7 +20,7 @@ export default function RootLayout({
   return (
     <html
       lang="de"
-      className={`${ueberschrift.variable} ${text.variable} h-full antialiased`}
+      className="h-full antialiased"
     >
       {/* Ein Layout fuer alle Seiten. Die Route-Gruppen (mit-nav)/(ohne-nav)
           sind am 30.08. entfallen: sie unterschieden sich nur durch die

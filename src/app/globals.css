@@ -14,6 +14,8 @@
   --card: #26232e;
   --line: #3a3644;
   --danger: #f08a7a;
+  --schrift-text: "Inter Variable", system-ui, sans-serif;
+  --schrift-titel: "Space Grotesk Variable", system-ui, sans-serif;
 }
 
 /* Gedruckt wird ohne Hintergrund — helle Schrift waere auf Papier unsichtbar
@@ -40,18 +42,18 @@
   --color-line: var(--line);
   --color-on-accent: var(--on-accent);
   --color-danger: var(--danger);
-  --font-sans: var(--font-body);
-  --font-heading: var(--font-heading);
+  --font-sans: var(--schrift-text);
+  --font-heading: var(--schrift-titel);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-body), sans-serif;
+  font-family: var(--schrift-text);
 }
 
 h1,
 h2,
 h3 {
-  font-family: var(--font-heading), sans-serif;
+  font-family: var(--schrift-titel);
 }
