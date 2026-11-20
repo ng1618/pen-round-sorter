@@ -261,6 +261,52 @@ pruefe("Zuruecksetzen laesst fruehere Tage unangetastet", () => {
   return "Tag 2 leer, Tag 1 vollstaendig";
 });
 
+pruefe("Wochenende nullen laesst nur ein leeres Tag 1 stehen", () => {
+  // 20.11.: zum Testen vor dem Abend und als Notausgang, falls etwas schiefgeht.
+  // Passwort, Tokens und Name haengen am Wochenende und muessen bleiben, sonst
+  // waeren die gedruckten QR-Codes ungueltig und die Ersteinrichtung offen.
+  q.wochenendeAnlegen("Nullwochenende", 3);
+  const w = q.aktuellesWochenendeId();
+  db.prepare("UPDATE wochenende SET admin_passwort_hash = 'h', admin_passwort_salt = 's' WHERE id = ?").run(w);
+  const vorher = db.prepare("SELECT name, tage, dm_token, spieler_token FROM wochenende WHERE id = ?").get(w);
+
+  const r1 = q.addRound({ dmName: "Mara", title: "Freitag", vibe: "", capacity: 4 });
+  const s1 = q.addEntry({ playerName: "Sarah", preferences: [{ roundId: r1.id, level: 3 }] });
+  q.commitLauf({
+    seed: "",
+    konfiguration: { verfahren: "rsd" },
+    eingabestand: { runden: [r1], spieler: [s1] },
+    losreihenfolge: [s1.id],
+    zuordnungen: [{ playerId: s1.id, roundId: r1.id, receivedLevel: 3 }],
+  });
+  const tag1 = q.aktuellesEventId();
+  if (!q.neuerTag().ok) throw new Error("neuerTag scheiterte");
+  q.addRound({ dmName: "Nils", title: "Samstag", vibe: "", capacity: 4 });
+  q.addEntry({ playerName: "Paul", preferences: [] });
+
+  q.wochenendeZuruecksetzen();
+
+  const tage = db.prepare("SELECT id, tag FROM event WHERE wochenende_id = ?").all(w);
+  if (tage.length !== 1 || tage[0].tag !== 1 || tage[0].id !== tag1) {
+    throw new Error(`erwartet nur Tag 1, gefunden ${JSON.stringify(tage)}`);
+  }
+  for (const tabelle of ["runde", "spieler", "matching_lauf"]) {
+    const n = db.prepare(`SELECT count(*) AS n FROM ${tabelle} WHERE event_id = ?`).get(tag1).n;
+    if (n !== 0) throw new Error(`${tabelle} hat noch ${n} Zeilen`);
+  }
+  if (q.tagInfo().tag !== 1) throw new Error("tagInfo steht nicht auf Tag 1");
+
+  const nachher = db.prepare("SELECT name, tage, dm_token, spieler_token FROM wochenende WHERE id = ?").get(w);
+  if (JSON.stringify(nachher) !== JSON.stringify(vorher)) throw new Error("Wochenende wurde veraendert");
+  if (q.adminPasswort()?.hash !== "h") throw new Error("Passwort ist weg");
+
+  // Andere Wochenenden (die der Pruefungen oben) bleiben unberuehrt.
+  const fremd = db.prepare("SELECT count(*) AS n FROM event WHERE wochenende_id <> ?").get(w).n;
+  if (fremd === 0) throw new Error("Pruefung erwartet fruehere Wochenenden");
+
+  return "ein leeres Tag 1, Passwort und Tokens unveraendert";
+});
+
 // Phase 4 (15.11.): Mehrfach-Alarm und Teilnehmerliste.
 
 pruefe("Mehrfach-Alarm zaehlt nur geaenderte Rankings", () => {

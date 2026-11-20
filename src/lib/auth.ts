@@ -72,7 +72,11 @@ export function passwortGesetzt(): boolean {
   return adminPasswort() !== null;
 }
 
-function passwortStimmt(passwort: string): boolean {
+/**
+ * Zusaetzlich zur Sitzung: die zerstoerenden Knoepfe verlangen das Passwort
+ * noch einmal (20.11.) — ein offenes Handy am Tresen reicht dann nicht.
+ */
+export function passwortStimmt(passwort: string): boolean {
   const gespeichert = adminPasswort();
   if (!gespeichert) return false;
   const a = Buffer.from(hash(passwort, gespeichert.salt), "hex");

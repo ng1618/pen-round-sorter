@@ -30,8 +30,4 @@ export const dbStore: DataStore = {
   async getAssignments() {
     return q.neuesteZuordnungen();
   },
-
-  async resetAll() {
-    q.resetAll();
-  },
 };
