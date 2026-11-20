@@ -116,7 +116,11 @@ function Zuruecksetzen({
 export default function EinstellungenClient() {
   const [tagInfo, setTagInfo] = useState<TagInfo | null>(null);
   const [fehler, setFehler] = useState<string | null>(null);
-  const [gespeichert, setGespeichert] = useState(false);
+  // Rueckmeldung direkt am Knopf (20.11.): ein kleines "Gespeichert." und
+  // Fehler oben auf der Seite sahen beide nach "passiert nichts" aus.
+  const [wochenendeMeldung, setWochenendeMeldung] = useState<
+    { art: "ok" | "fehler"; text: string } | null
+  >(null);
   const [regeln, setRegeln] = useState<Einstellungen | null>(null);
 
   async function laden() {
@@ -141,8 +145,7 @@ export default function EinstellungenClient() {
   }, []);
 
   async function handleWochenende(name: string, tage: number) {
-    setFehler(null);
-    setGespeichert(false);
+    setWochenendeMeldung(null);
     const res = await fetch("/api/wochenende", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -150,17 +153,19 @@ export default function EinstellungenClient() {
     });
     if (!res.ok) {
       const { fehler: text } = await res.json().catch(() => ({}));
-      setFehler(text ?? `Wochenende konnte nicht gespeichert werden (${res.status}).`);
+      setWochenendeMeldung({
+        art: "fehler",
+        text: text ?? `Wochenende konnte nicht gespeichert werden (${res.status}).`,
+      });
       return;
     }
-    setGespeichert(true);
     await laden();
+    setWochenendeMeldung({ art: "ok", text: `Gespeichert: „${name.trim()}“, ${tage} Tage.` });
   }
 
   /** Verfahren und Schalter. Serverseitig geprueft, hier nur durchgereicht. */
   async function handleRegeln(teil: Partial<Einstellungen>) {
     setFehler(null);
-    setGespeichert(false);
     const res = await fetch("/api/einstellungen", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -172,7 +177,6 @@ export default function EinstellungenClient() {
       return;
     }
     setRegeln(await res.json());
-    setGespeichert(true);
   }
 
   if (!tagInfo) {
@@ -209,7 +213,11 @@ export default function EinstellungenClient() {
 
       <section>
         <h2 className="text-sm font-semibold text-accent">Wochenende</h2>
+        {/* noValidate: die Browserpruefung von min/max blockierte stumm, im
+            eingebetteten Browser ohne jede Meldung. Der Server prueft und
+            sagt, was nicht geht. */}
         <form
+          noValidate
           key={`${tagInfo.name}-${tagInfo.tage}`}
           onSubmit={(e) => {
             e.preventDefault();
@@ -245,9 +253,15 @@ export default function EinstellungenClient() {
             {ersteinrichtung ? "Wochenende anlegen" : "Speichern"}
           </button>
 
-          {gespeichert && (
-            <p className="w-full text-xs text-accent" role="status">
-              Gespeichert.
+          {wochenendeMeldung && (
+            <p
+              className={`w-full text-sm font-medium ${
+                wochenendeMeldung.art === "ok" ? "text-accent" : "text-danger"
+              }`}
+              role={wochenendeMeldung.art === "ok" ? "status" : "alert"}
+            >
+              {wochenendeMeldung.art === "ok" ? "✓ " : ""}
+              {wochenendeMeldung.text}
             </p>
           )}
           <p className="w-full text-xs text-muted">
