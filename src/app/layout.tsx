@@ -1,17 +1,18 @@
 import type { Metadata } from "next";
-import { Cinzel, EB_Garamond } from "next/font/google";
+import { Inter, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 
-const cinzel = Cinzel({
+// Schrift "klar" (20.11.): Space Grotesk fuer Ueberschriften, Inter fuer Text.
+const ueberschrift = Space_Grotesk({
   variable: "--font-heading",
   subsets: ["latin"],
-  weight: ["600", "700"],
+  weight: ["500", "600", "700"],
 });
 
-const ebGaramond = EB_Garamond({
+const text = Inter({
   variable: "--font-body",
   subsets: ["latin"],
-  weight: ["400", "500"],
+  weight: ["400", "500", "600"],
 });
 
 export const metadata: Metadata = {
@@ -27,7 +28,7 @@ export default function RootLayout({
   return (
     <html
       lang="de"
-      className={`${cinzel.variable} ${ebGaramond.variable} h-full antialiased`}
+      className={`${ueberschrift.variable} ${text.variable} h-full antialiased`}
     >
       {/* Ein Layout fuer alle Seiten. Die Route-Gruppen (mit-nav)/(ohne-nav)
           sind am 30.08. entfallen: sie unterschieden sich nur durch die

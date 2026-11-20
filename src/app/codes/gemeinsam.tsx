@@ -80,8 +80,8 @@ export function Erreichbarkeit({ basis }: { basis: Basis }) {
 
   if (basis.erreichbarkeit === "nur-dieser-rechner") {
     return (
-      <div className="mb-6 rounded-md border-2 border-red-700 bg-card p-4" role="alert">
-        <p className="font-semibold text-red-700">Dieser Code führt ins Leere.</p>
+      <div className="mb-6 rounded-md border-2 border-danger bg-card p-4" role="alert">
+        <p className="font-semibold text-danger">Dieser Code führt ins Leere.</p>
         <p className="mt-2 text-sm">
           Er zeigt auf <span className="font-mono">{basis.url}</span> — das ist nur dieser Rechner.
           Ein anderes Gerät kommt da nicht hinein; gescannt passiert nichts.

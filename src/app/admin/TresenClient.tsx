@@ -139,7 +139,7 @@ export default function TresenClient() {
           {submittedCount} haben eingereicht)
         </p>
         {capacity < entries.length && (
-          <p className="mt-1 text-sm text-red-700">
+          <p className="mt-1 text-sm text-danger">
             Unterdeckung: {entries.length - capacity} Spielende mehr als Plätze.
           </p>
         )}
@@ -215,7 +215,7 @@ export default function TresenClient() {
                     </span>
                   )}
                   {(teilnehmerById.get(e.id)?.aenderungen ?? 0) > 0 && (
-                    <span className="block text-xs text-red-700">
+                    <span className="block text-xs text-danger">
                       ⚠️ Ranking {teilnehmerById.get(e.id)?.aenderungen}× geändert — gleiche Person
                       oder Namensgleichheit?
                     </span>
@@ -227,7 +227,7 @@ export default function TresenClient() {
                   jaText="wirklich"
                   kompakt
                   onJa={() => handleDelete(e.id)}
-                  className="shrink-0 text-red-700 hover:text-red-800"
+                  className="shrink-0 text-danger hover:text-danger"
                 />
               </li>
             ))}
@@ -260,7 +260,7 @@ function NaechsterSchritt({
   onNeuerTag: () => void;
 }) {
   const rahmen = "rounded-md border border-accent/40 bg-card p-4";
-  const primaer = "inline-flex min-h-11 items-center rounded-md bg-accent px-5 py-3 font-medium text-white";
+  const primaer = "inline-flex min-h-11 items-center rounded-md bg-accent px-5 py-3 font-medium text-on-accent";
   const codes = (
     <Link href="/codes" className="text-sm text-accent underline">
       📱 Codes zum Scannen
@@ -457,7 +457,7 @@ function RundenZeile({
         <div className="flex gap-2">
           <button
             type="submit"
-            className="min-h-11 rounded-md bg-accent px-4 py-2 text-sm font-medium text-white"
+            className="min-h-11 rounded-md bg-accent px-4 py-2 text-sm font-medium text-on-accent"
           >
             Speichern
           </button>

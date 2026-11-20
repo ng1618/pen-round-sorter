@@ -57,12 +57,12 @@ export default function AnmeldeFormular({ ersteinrichtung }: { ersteinrichtung: 
           />
         </label>
 
-        {fehler && <p className="text-sm text-red-700">{fehler}</p>}
+        {fehler && <p className="text-sm text-danger">{fehler}</p>}
 
         <button
           type="submit"
           disabled={laeuft || passwort.length < mindestens}
-          className="w-fit rounded-md bg-accent px-4 py-2 font-medium text-white disabled:opacity-40"
+          className="w-fit rounded-md bg-accent px-4 py-2 font-medium text-on-accent disabled:opacity-40"
         >
           {ersteinrichtung ? "Passwort setzen" : "Anmelden"}
         </button>
