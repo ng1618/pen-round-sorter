@@ -98,14 +98,7 @@ export default function GastSchranke({
     );
   }
 
-  if (zugang.auslosungLaeuft && !zugang.wirt) {
-    return (
-      <div className="flex flex-col gap-4">
-        <h1 className="text-2xl font-bold">🎲 Die Auslosung läuft</h1>
-        <p className="text-muted">{sperrText}</p>
-      </div>
-    );
-  }
+  if (zugang.auslosungLaeuft && !zugang.wirt) return <Ergebnis sperrText={sperrText} />;
 
   return (
     <>
@@ -117,5 +110,84 @@ export default function GastSchranke({
       )}
       {children}
     </>
+  );
+}
+
+type ErgebnisDaten =
+  | { festgelegt: false }
+  | {
+      festgelegt: true;
+      tische: Array<{ titel: string; leitung: string; namen: string[] }>;
+      ohnePlatz: string[];
+    };
+
+/**
+ * Nach dem Festlegen sehen Gaeste, wer an welchem Tisch sitzt (20.11.) —
+ * ohne die Stufe, wie gern jemand dorthin wollte. Vorher der Hinweis, dass
+ * die Auslosung laeuft.
+ */
+function Ergebnis({ sperrText }: { sperrText: string }) {
+  const [daten, setDaten] = useState<ErgebnisDaten | null>(null);
+  const laden = useCallback(async () => {
+    try {
+      const res = await fetch("/api/ergebnis", { cache: "no-store" });
+      if (res.ok) setDaten(await res.json());
+    } catch {
+      // Dann bleibt der Hinweis stehen; "Neu laden" versucht es wieder.
+    }
+  }, []);
+  useEffect(() => {
+    void (async () => {
+      await laden();
+    })();
+  }, [laden]);
+
+  const neuLaden = (
+    <button
+      onClick={() => void laden()}
+      className="min-h-11 w-fit rounded-md border border-line px-4 py-2 text-sm"
+    >
+      Neu laden
+    </button>
+  );
+
+  if (!daten?.festgelegt) {
+    return (
+      <div className="flex flex-col gap-4">
+        <h1 className="text-2xl font-bold">🎲 Die Auslosung läuft</h1>
+        <p className="text-muted">{sperrText}</p>
+        <p className="text-sm text-muted">Sobald die Tische feststehen, erscheinen sie hier.</p>
+        {neuLaden}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div>
+        <h1 className="text-2xl font-bold">🎲 Die Tische stehen</h1>
+        <p className="mt-2 text-muted">Such deinen Namen und geh zu deinem Tisch.</p>
+      </div>
+      <ul className="flex flex-col gap-3">
+        {daten.tische.map((t) => (
+          <li key={t.titel + t.leitung} className="rounded-md border border-line bg-card p-4">
+            <h2 className="font-semibold text-accent">{t.titel}</h2>
+            <p className="text-sm text-muted">Leitung {t.leitung}</p>
+            {t.namen.length > 0 ? (
+              <p className="mt-2">{t.namen.join(" · ")}</p>
+            ) : (
+              <p className="mt-2 text-sm text-muted">Niemand.</p>
+            )}
+          </li>
+        ))}
+      </ul>
+      {daten.ohnePlatz.length > 0 && (
+        <p className="rounded-md border border-danger bg-card p-4 text-sm">
+          <strong className="text-danger">Noch ohne Platz:</strong> {daten.ohnePlatz.join(" · ")} —
+          bitte am Tresen melden.
+        </p>
+      )}
+      {neuLaden}
+    </div>
   );
 }
