@@ -45,6 +45,20 @@ export default async function CodesUebersicht() {
         ))}
       </ul>
 
+      {/* Beide Codes als PDF zum Ausdrucken oder Weitergeben (20.11.). */}
+      <a
+        href="/api/codes/pdf"
+        download
+        className="mt-6 inline-flex min-h-11 items-center rounded-md bg-accent px-5 py-2 font-medium text-on-accent"
+      >
+        Als PDF herunterladen
+      </a>
+      {basis.erreichbarkeit !== "oeffentlich" && (
+        <p className="mt-2 text-sm text-danger">
+          Achtung: Das PDF enthält die Adresse oben — sie ist von anderen Geräten nicht erreichbar.
+        </p>
+      )}
+
       <p className="mt-6 text-sm">
         <a href="/admin" className="text-muted underline">
           zurück zur Verwaltung
