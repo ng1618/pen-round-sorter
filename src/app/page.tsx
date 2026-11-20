@@ -6,7 +6,7 @@ export default function Home() {
       <div>
         <h1 className="text-2xl font-bold">📜 Rundenverteiler</h1>
         <p className="mt-2 italic text-muted">
-          Such dir deinen Tisch aus. Die Würfel sind schon warm.
+          Wähl deine Rolle für heute Abend.
         </p>
       </div>
 
@@ -29,7 +29,7 @@ export default function Home() {
           <span className="text-2xl">🛡️</span>
           <h2 className="mt-2 font-semibold text-accent">Du spielst mit</h2>
           <p className="mt-1 text-sm text-muted">
-            Sag zu jedem Tisch, wie sehr du willst.
+            Sag, an welchen Tisch du am liebsten willst.
           </p>
         </Link>
 
