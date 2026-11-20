@@ -98,19 +98,15 @@ export default function GastSchranke({
     );
   }
 
-  if (zugang.auslosungLaeuft && !zugang.wirt) return <Ergebnis sperrText={sperrText} />;
+  if (zugang.auslosungLaeuft) {
+    return (
+      <Ergebnis sperrText={sperrText} wirt={zugang.wirt}>
+        {children}
+      </Ergebnis>
+    );
+  }
 
-  return (
-    <>
-      {zugang.auslosungLaeuft && zugang.wirt && (
-        <p className="mb-4 rounded-md border border-accent bg-card p-3 text-sm" role="status">
-          Die Auslosung läuft — Gäste sind gesperrt. Du bist als Wirt angemeldet und kannst hier
-          Nachzügler eintragen; beim Festlegen kommt dann die Rückfrage „dazugekommen“.
-        </p>
-      )}
-      {children}
-    </>
-  );
+  return <>{children}</>;
 }
 
 type ErgebnisDaten =
@@ -126,8 +122,17 @@ type ErgebnisDaten =
  * ohne die Stufe, wie gern jemand dorthin wollte. Vorher der Hinweis, dass
  * die Auslosung laeuft.
  */
-function Ergebnis({ sperrText }: { sperrText: string }) {
+function Ergebnis({
+  sperrText,
+  wirt,
+  children,
+}: {
+  sperrText: string;
+  wirt: boolean;
+  children: React.ReactNode;
+}) {
   const [daten, setDaten] = useState<ErgebnisDaten | null>(null);
+  const [nachtrag, setNachtrag] = useState(false);
   const laden = useCallback(async () => {
     try {
       const res = await fetch("/api/ergebnis", { cache: "no-store" });
@@ -150,6 +155,27 @@ function Ergebnis({ sperrText }: { sperrText: string }) {
       Neu laden
     </button>
   );
+
+  // Der Wirt sieht vor dem Festlegen das Formular (Nachzuegler eintragen),
+  // danach wie alle das Ergebnis — mit einem Knopf zurueck zum Formular.
+  // Bis 20.11. abends sah der angemeldete Wirt auch nach dem Festlegen nur das
+  // Formular und hielt das Ergebnis fuer verschwunden.
+  if (wirt && (nachtrag || (daten !== null && !daten.festgelegt))) {
+    return (
+      <>
+        <p className="mb-4 rounded-md border border-accent bg-card p-3 text-sm" role="status">
+          Die Auslosung läuft — Gäste sind gesperrt. Du bist als Wirt angemeldet und kannst hier
+          Nachzügler eintragen; beim Festlegen kommt dann die Rückfrage „dazugekommen“.
+          {nachtrag && (
+            <button onClick={() => setNachtrag(false)} className="ml-2 text-accent underline">
+              Zurück zum Ergebnis
+            </button>
+          )}
+        </p>
+        {children}
+      </>
+    );
+  }
 
   if (!daten?.festgelegt) {
     return (
@@ -187,7 +213,17 @@ function Ergebnis({ sperrText }: { sperrText: string }) {
           bitte am Tresen melden.
         </p>
       )}
-      {neuLaden}
+      <div className="flex flex-wrap gap-2">
+        {neuLaden}
+        {wirt && (
+          <button
+            onClick={() => setNachtrag(true)}
+            className="min-h-11 w-fit rounded-md border border-line px-4 py-2 text-sm"
+          >
+            Nachzügler eintragen (Wirt)
+          </button>
+        )}
+      </div>
     </div>
   );
 }

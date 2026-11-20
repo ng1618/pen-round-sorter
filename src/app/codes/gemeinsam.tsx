@@ -7,10 +7,13 @@ import { basisUrl, type Basis } from "@/lib/basis-url";
  *
  * Die Codes werden **nicht gedruckt**, sondern vom Bildschirm abgescannt — vom
  * Handy einer Verwaltung oder vom Laptop (Festlegung vom 30.08.). Daraus folgt
- * dreierlei: jeder Code bekommt eine **eigene Seite**, damit er groß sein kann;
- * es gibt kein Druck-Layout; und die Adresse ist immer die aktuelle, weil sie
- * bei jedem Aufruf neu entsteht. Das Risiko einer eingefrorenen Adresse, das
- * ein Ausdruck mit sich brächte, existiert hier gar nicht.
+ * zweierlei: jeder Code bekommt eine **eigene Seite**, damit er groß sein kann;
+ * und die Adresse ist immer die aktuelle, weil sie bei jedem Aufruf neu
+ * entsteht.
+ *
+ * Seit dem 20.11. gibt es zusätzlich ein PDF (`/api/codes/pdf`) zum Ausdrucken.
+ * Damit kommt das Risiko der eingefrorenen Adresse zurück — deshalb steht sie
+ * im PDF unter jedem Code zum Gegenlesen.
  */
 
 export const ZIELE = {
