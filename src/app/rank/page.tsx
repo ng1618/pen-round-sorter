@@ -79,7 +79,7 @@ export default function RankPage() {
         <Tagesanzeige />
         <h1 className="text-2xl font-bold">🛡️ Such dir deinen Tisch</h1>
         <p className="mt-2 text-muted">
-          Sag zu jedem Tisch, wie sehr du willst. Alles, was du nicht anfasst,
+          Sag bei jeder Runde, wie gern du mitspielen würdest. Alles, was du nicht anfasst,
           gilt als &bdquo;geht auch&ldquo; &mdash; nur den Namen abzuschicken heißt also{" "}
           <strong>mir ist alles recht</strong>, nicht &bdquo;nichts davon&ldquo;. Einen Tisch
           darfst du 🔥 <strong>unbedingt</strong> geben, genau einen.
