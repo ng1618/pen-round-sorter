@@ -2,12 +2,100 @@
 
 import { useEffect, useState } from "react";
 import AdminUnterleiste from "@/components/AdminUnterleiste";
-import Bestaetigung from "@/components/Bestaetigung";
 import Fehlerhinweis from "@/components/Fehlerhinweis";
-import { dataStore } from "@/lib/dataStore";
 import type { Einstellungen } from "@/lib/types";
 
 type TagInfo = { name: string; tag: number; tage: number };
+
+/**
+ * Ein zerstörender Knopf, der das Verwaltungspasswort noch einmal verlangt
+ * (20.11.). Die Sitzung allein reicht nicht: am Tresen liegt ein Handy offen.
+ */
+function Zuruecksetzen({
+  umfang,
+  knopf,
+  text,
+}: {
+  umfang: "tag" | "wochenende";
+  knopf: string;
+  text: React.ReactNode;
+}) {
+  const [offen, setOffen] = useState(false);
+  const [passwort, setPasswort] = useState("");
+  const [fehler, setFehler] = useState<string | null>(null);
+  const [laeuft, setLaeuft] = useState(false);
+
+  async function absenden(e: React.FormEvent) {
+    e.preventDefault();
+    setLaeuft(true);
+    setFehler(null);
+    const res = await fetch("/api/reset", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ passwort, umfang }),
+    }).catch(() => null);
+    if (res?.ok) {
+      window.location.href = "/admin";
+      return;
+    }
+    const { fehler: meldung } = (await res?.json().catch(() => ({}))) ?? {};
+    setFehler(meldung ?? "Zurücksetzen fehlgeschlagen.");
+    setLaeuft(false);
+  }
+
+  return (
+    <div className="flex max-w-prose flex-col gap-3 text-sm">
+      <p className="text-muted">{text}</p>
+      {!offen ? (
+        <button
+          onClick={() => setOffen(true)}
+          className="min-h-11 w-fit rounded-md border border-red-700 px-4 py-2 text-red-700 hover:bg-red-700/10"
+        >
+          {knopf}
+        </button>
+      ) : (
+        <form
+          onSubmit={absenden}
+          className="flex flex-col gap-3 rounded-md border border-red-700 bg-card p-3"
+          role="alertdialog"
+        >
+          <label className="flex flex-col gap-1">
+            Zur Sicherheit das Verwaltungspasswort
+            <input
+              type="password"
+              autoComplete="current-password"
+              autoFocus
+              value={passwort}
+              onChange={(e) => setPasswort(e.target.value)}
+              className="min-h-11 rounded-md border border-line bg-card px-3 py-2"
+            />
+          </label>
+          {fehler && <p className="text-red-700">{fehler}</p>}
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="submit"
+              disabled={laeuft || passwort.length === 0}
+              className="min-h-11 rounded-md bg-red-700 px-4 py-2 font-medium text-white disabled:opacity-40"
+            >
+              {knopf}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setOffen(false);
+                setPasswort("");
+                setFehler(null);
+              }}
+              className="min-h-11 rounded-md border border-line px-4 py-2 text-muted"
+            >
+              Abbrechen
+            </button>
+          </div>
+        </form>
+      )}
+    </div>
+  );
+}
 
 /**
  * Wochenende und Regeln — alles, was selten angefasst wird.
@@ -85,16 +173,6 @@ export default function EinstellungenClient() {
     }
     setRegeln(await res.json());
     setGespeichert(true);
-  }
-
-  async function handleReset() {
-    setFehler(null);
-    try {
-      await dataStore.resetAll();
-      window.location.href = "/admin";
-    } catch (e) {
-      setFehler(`Zurücksetzen fehlgeschlagen: ${e instanceof Error ? e.message : String(e)}`);
-    }
   }
 
   if (!tagInfo) {
@@ -254,27 +332,33 @@ export default function EinstellungenClient() {
         </section>
       )}
 
-      {/* Die zerstörendste Handlung ganz unten, hinter einer Rückfrage. */}
+      {/* Die zerstörendsten Handlungen ganz unten, hinter dem Passwort. */}
       {!ersteinrichtung && (
-        <section className="mt-4 border-t border-line pt-6">
+        <section className="mt-4 flex flex-col gap-6 border-t border-line pt-6">
           <h2 className="text-sm font-semibold text-red-700">Gefährliche Ecke</h2>
-          <p className="mt-2 max-w-prose text-sm text-muted">
-            Setzt <strong>diesen Tag</strong> zurück: Runden, Spielende und Ergebnisse dieses
-            Tages werden gelöscht. Das Wochenende, das Passwort und <strong>frühere Tage</strong>
-            bleiben stehen — geprüft in <code>npm run db:check</code>.
-          </p>
-          <div className="mt-3">
-            <Bestaetigung
-              knopf="Diesen Tag zurücksetzen"
-              frage={
-                "Runden, Spielende und Ergebnisse dieses Tages werden gelöscht.\n" +
-                "Das Wochenende und das Passwort bleiben."
-              }
-              jaText="Ja, löschen"
-              onJa={handleReset}
-              className="min-h-11 rounded-md border border-red-700 px-4 py-2 text-sm text-red-700 hover:bg-red-700/10"
-            />
-          </div>
+
+          <Zuruecksetzen
+            umfang="tag"
+            knopf={`Tag ${tagInfo.tag} zurücksetzen`}
+            text={
+              <>
+                Runden, Spielende und Ergebnisse von <strong>Tag {tagInfo.tag}</strong> werden
+                gelöscht, als wäre an diesem Tag nichts geschehen. <strong>Frühere Tage</strong>,
+                das Passwort und die QR-Codes bleiben.
+              </>
+            }
+          />
+
+          <Zuruecksetzen
+            umfang="wochenende"
+            knopf="Wochenende nullen"
+            text={
+              <>
+                <strong>Alle Tage</strong> werden geleert, danach steht das Wochenende wieder leer
+                auf Tag 1. Name, Tagesanzahl, Regeln, Passwort und QR-Codes bleiben.
+              </>
+            }
+          />
         </section>
       )}
     </div>

@@ -14,7 +14,6 @@ export interface DataStore {
   listEntries(): Promise<PlayerEntry[]>;
   addEntry(entry: Omit<PlayerEntry, "id" | "createdAt" | "submittedAt">): Promise<PlayerEntry>;
   getAssignments(): Promise<Assignment[] | null>;
-  resetAll(): Promise<void>;
   // Geschrieben wird eine Auslosung nur ueber /api/matching/commit — nicht von
   // hier aus. Sonst gaebe es zwei Wege ins Schreiben, und einer davon koennte
   // den Schnappschuss erst beim Speichern erzeugen.

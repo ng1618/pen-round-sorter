@@ -670,3 +670,29 @@ export function resetAll(db: Database.Database = getDb()): void {
     db.prepare("DELETE FROM runde WHERE event_id = ?").run(eventId);
   })();
 }
+
+/**
+ * Das ganze Wochenende auf null: alle Tage leer, nur ein leeres Tag 1 bleibt.
+ *
+ * Zum Testen vor dem Abend und als Notausgang (20.11.). Name, Tagesanzahl,
+ * Passwort, Tokens und Einstellungen haengen an `wochenende` und bleiben — die
+ * gedruckten QR-Codes gelten weiter, und die Ersteinrichtung geht nicht wieder
+ * auf (siehe `resetAll`).
+ */
+export function wochenendeZuruecksetzen(db: Database.Database = getDb()): void {
+  const w = aktuellesWochenendeId(db);
+  const dieseTage = "SELECT id FROM event WHERE wochenende_id = ?";
+
+  db.transaction(() => {
+    db.prepare(
+      "DELETE FROM zuordnung WHERE matching_lauf_id IN " +
+        `(SELECT id FROM matching_lauf WHERE event_id IN (${dieseTage}))`,
+    ).run(w);
+    db.prepare(`DELETE FROM matching_lauf WHERE event_id IN (${dieseTage})`).run(w);
+    db.prepare(`DELETE FROM spieler WHERE event_id IN (${dieseTage})`).run(w);
+    db.prepare(`DELETE FROM runde WHERE event_id IN (${dieseTage})`).run(w);
+    db.prepare("DELETE FROM event WHERE wochenende_id = ? AND tag > 1").run(w);
+  })();
+  // Gab es noch gar keinen Tag, legt das ein leeres Tag 1 an.
+  aktuellesEventId(db);
+}
