@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { istAngemeldet } from "@/lib/auth";
-import { commitLauf, listEntries, listRounds } from "@/lib/db/queries";
+import { auslosungLaeuft, commitLauf, listEntries, listRounds } from "@/lib/db/queries";
 import { pruefeAuslosung, standAbgleich } from "@/lib/auslosung-pruefen";
 import { type Auslosung } from "@/lib/protokoll";
 
@@ -13,10 +13,30 @@ export async function POST(request: Request) {
     return NextResponse.json({ fehler: "Nicht angemeldet." }, { status: 401 });
   }
 
-  const { auslosung, trotzdem } = (await request.json()) as {
-    auslosung?: Auslosung;
-    trotzdem?: boolean;
-  };
+  // Abgesichert wie in allen anderen Routen (20.11.): eine abgeschnittene
+  // Anfrage bei schwachem WLAN am Tresen endete hier als nichtssagender 500.
+  // Bewusst nuechtern statt im Wirtshaus-Ton — es geht um das Ergebnis.
+  let rumpf: { auslosung?: Auslosung; trotzdem?: boolean };
+  try {
+    rumpf = (await request.json()) as typeof rumpf;
+  } catch {
+    return NextResponse.json(
+      { fehler: "Anfrage nicht lesbar. Die Auslosung wurde NICHT gespeichert — bitte noch einmal festlegen." },
+      { status: 400 },
+    );
+  }
+  const { auslosung, trotzdem } = rumpf ?? {};
+
+  // Ab hier synchron. Ohne laufende Sperre war die Vorschau abgebrochen (etwa
+  // in einem zweiten Tab), und inzwischen kann ein Gast unter demselben Namen
+  // neu eingereicht haben — Id und Name gleich, `standAbgleich` saehe nichts
+  // (Rollen-Review 20.11.).
+  if (!auslosungLaeuft()) {
+    return NextResponse.json(
+      { fehler: "Die Auslosung wurde inzwischen abgebrochen. Diese Vorschau gilt nicht mehr — bitte neu auslosen." },
+      { status: 409 },
+    );
+  }
 
   const fehler = pruefeAuslosung(auslosung);
   if (fehler) return NextResponse.json({ fehler }, { status: 400 });

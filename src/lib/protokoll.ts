@@ -119,7 +119,7 @@ export function protokollText(a: Auslosung, erzeugtAm = new Date()): string {
   const name = (id: number) => spielerVon.get(id)?.playerName ?? `#${id}`;
 
   const zeilen: string[] = [
-    `Auslosung vom ${erzeugtAm.toLocaleString("de-DE")}`,
+    `Auslosung vom ${erzeugtAm.toLocaleString("de-DE", { timeZone: "Europe/Berlin" })}`,
     `Verfahren: ${String(a.konfiguration.verfahren ?? "rsd")}${a.seed ? ` · Seed: ${a.seed}` : " · ohne Seed (nicht reproduzierbar)"}`,
     ...(VERFAHREN_ERKLAERUNG[String(a.konfiguration.verfahren ?? "rsd")] ?? "").split("\n").filter(Boolean),
     "",
@@ -182,7 +182,7 @@ export function einreichungenText(
   const marke = (level: number) => LEVELS.find((l) => l.level === level)?.emoji ?? "?";
 
   const zeilen: string[] = [
-    `Einreichungen, Stand ${erzeugtAm.toLocaleString("de-DE")}`,
+    `Einreichungen, Stand ${erzeugtAm.toLocaleString("de-DE", { timeZone: "Europe/Berlin" })}`,
     "",
     `${runden.length} Runden · ${plaetze} Plaetze · ${spieler.length} Spielende ` +
       `(${eingereicht} haben eingereicht)`,

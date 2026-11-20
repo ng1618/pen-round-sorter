@@ -201,6 +201,14 @@ const MIGRATIONS: Array<(db: Database.Database) => void> = [
   // nicht mehr berechnen. Die Teilnehmerliste dagegen wird berechnet, nicht
   // gespeichert (`teilnehmerliste()` in queries.ts).
   (db) => db.exec("ALTER TABLE spieler ADD COLUMN aenderungen INTEGER NOT NULL DEFAULT 0"),
+
+  // Schritt 7 (20.11.): Sperre ab dem Auslosen.
+  //
+  // Gesetzt beim ersten „Auslosen" des Tages. Ab dann nehmen Gaeste nichts mehr
+  // an und Runden sind gesperrt: eine zweite Einreichung unter demselben Namen
+  // behielt Id und Namen, die Pruefung vor dem Festlegen hielt alles fuer
+  // unveraendert, und die neuen Wuensche gingen still verloren. NULL = offen.
+  (db) => db.exec("ALTER TABLE event ADD COLUMN ausgelost_am TEXT"),
 ];
 
 /**

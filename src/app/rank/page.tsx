@@ -2,11 +2,21 @@
 
 import { useEffect, useState } from "react";
 import Fehlerhinweis from "@/components/Fehlerhinweis";
+import GastSchranke from "@/components/GastSchranke";
 import Tagesanzeige from "@/components/Tagesanzeige";
 import { dataStore } from "@/lib/dataStore";
 import { LEVELS, LEVEL_STANDARD, LEVEL_TOP, type Level, type Round } from "@/lib/types";
 
+/** Hinter Gast-Passwort und Sperre ab dem Auslosen (20.11.). */
 export default function RankPage() {
+  return (
+    <GastSchranke sperrText={"Der Wirt verteilt gerade die Tische. Wünsche ändern oder neu abgeben geht jetzt nur noch am Tresen."}>
+      <RankPageInhalt />
+    </GastSchranke>
+  );
+}
+
+function RankPageInhalt() {
   const [rounds, setRounds] = useState<Round[]>([]);
   const [playerName, setPlayerName] = useState("");
   const [levels, setLevels] = useState<Record<number, Level>>({});

@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import AdminUnterleiste from "@/components/AdminUnterleiste";
 import Bestaetigung from "@/components/Bestaetigung";
 import Fehlerhinweis from "@/components/Fehlerhinweis";
+import { useZugang } from "@/components/GastSchranke";
 import Kennzahlenliste from "@/components/Kennzahlenliste";
 import RundenErgebnis from "@/components/RundenErgebnis";
 import Tagesanzeige from "@/components/Tagesanzeige";
@@ -43,6 +44,9 @@ export default function AuslosungClient() {
   const [vorschau, setVorschau] = useState<
     { auslosung: Auslosung; kennzahlen: Kennzahlen } | null
   >(null);
+  /** Sperre ab dem Auslosen (20.11.): Gaeste reichen nicht mehr ein. */
+  const { zugang, laden: zugangLaden } = useZugang();
+  const laeuft = zugang?.auslosungLaeuft ?? false;
 
   async function refresh() {
     setRounds(await dataStore.listRounds());
@@ -79,6 +83,20 @@ export default function AuslosungClient() {
     }
     setTausch(null);
     setVorschau(await res.json());
+    await zugangLaden();
+  }
+
+  /** Sperre aufheben, solange nichts festgelegt ist. */
+  async function handleAbbrechen() {
+    setFehler(null);
+    const res = await fetch("/api/matching/abbrechen", { method: "POST" });
+    if (!res.ok) {
+      const { fehler: text } = await res.json().catch(() => ({}));
+      setFehler(text ?? `Abbrechen fehlgeschlagen (${res.status}).`);
+    }
+    setTausch(null);
+    setVorschau(null);
+    await zugangLaden();
   }
 
   /** Erst hier entsteht eine Zeile. Verworfene Wuerfe hat es nie gegeben. */
@@ -220,12 +238,10 @@ export default function AuslosungClient() {
     const res = await fetch(`/api/rounds/${rundenId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        dmName: runde.dmName,
-        title: runde.title,
-        vibe: runde.vibe,
-        capacity: plaetze,
-      }),
+      // Nur die Platzzahl (20.11.). Titel und Leitung aus dem Stand beim
+      // Auslosen mitzuschicken, schrieb eine inzwischen am Tresen korrigierte
+      // Angabe zurueck. Ab dem Auslosen nimmt der Server nur noch mehr Plaetze.
+      body: JSON.stringify({ capacity: plaetze }),
     });
     if (!res.ok) {
       const { fehler: text } = await res.json().catch(() => ({}));
@@ -362,18 +378,58 @@ export default function AuslosungClient() {
 
       {/* Vor dem Festlegen ist Auslosen die Haupthandlung. Steht schon ein
           Ergebnis, wird sie zur Nebenhandlung — ein neuer Wurf ersetzt es. */}
+      {laeuft && !vorschau && !assignments && (
+        <div className="rounded-md border border-accent bg-card p-3 text-sm" role="status">
+          <p>
+            <strong>Die Auslosung läuft</strong>, festgelegt ist noch nichts. Gäste können nicht
+            mehr einreichen, Runden lassen sich nur noch aufstocken.
+          </p>
+          <div className="mt-3">
+            <Bestaetigung
+              knopf="Auslosung abbrechen"
+              frage={
+                "Gäste können danach wieder einreichen, Runden wieder geändert werden.\n" +
+                "Es ist noch nichts festgelegt, es geht also nichts verloren."
+              }
+              jaText="Ja, abbrechen"
+              onJa={handleAbbrechen}
+              className="min-h-11 rounded-md border border-line px-4 py-2 text-sm"
+            />
+          </div>
+        </div>
+      )}
+
       {!nichtsDa && !vorschau && (
         <div className="flex flex-wrap items-center gap-3">
-          <button
-            onClick={handleAuslosen}
-            className={
-              assignments
-                ? "min-h-11 rounded-md border border-line px-4 py-2 text-sm"
-                : "min-h-11 rounded-md bg-accent px-5 py-3 font-medium text-on-accent"
-            }
-          >
-            {assignments ? "Neu auslosen" : "Auslosen"}
-          </button>
+          {/* Der erste Wurf sperrt Gaeste und Runden (20.11.). Bis dahin war ein
+              Probewurf folgenlos — deshalb hier einmal nachfragen. */}
+          {laeuft ? (
+            <button
+              onClick={handleAuslosen}
+              className={
+                assignments
+                  ? "min-h-11 rounded-md border border-line px-4 py-2 text-sm"
+                  : "min-h-11 rounded-md bg-accent px-5 py-3 font-medium text-on-accent"
+              }
+            >
+              {assignments ? "Neu auslosen" : "Auslosen"}
+            </button>
+          ) : (
+            <Bestaetigung
+              knopf={assignments ? "Neu auslosen" : "Auslosen"}
+              frage={
+                "Danach können Gäste nicht mehr einreichen, und Runden lassen sich nur noch aufstocken.\n" +
+                "Solange nichts festgelegt ist, hebt „Auslosung abbrechen“ das wieder auf."
+              }
+              jaText="Ja, auslosen"
+              onJa={handleAuslosen}
+              className={
+                assignments
+                  ? "min-h-11 rounded-md border border-line px-4 py-2 text-sm"
+                  : "min-h-11 rounded-md bg-accent px-5 py-3 font-medium text-on-accent"
+              }
+            />
+          )}
           {entries.length > 0 && (
             <button
               onClick={handleEinreichungen}

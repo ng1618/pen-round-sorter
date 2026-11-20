@@ -2,11 +2,21 @@
 
 import { useEffect, useRef, useState } from "react";
 import Fehlerhinweis from "@/components/Fehlerhinweis";
+import GastSchranke from "@/components/GastSchranke";
 import Tagesanzeige from "@/components/Tagesanzeige";
 import { dataStore } from "@/lib/dataStore";
 import type { Round } from "@/lib/types";
 
+/** Hinter Gast-Passwort und Sperre ab dem Auslosen (20.11.). */
 export default function DmPage() {
+  return (
+    <GastSchranke sperrText={"Der Wirt verteilt gerade die Tische. Eine Runde ändern oder neu eintragen geht jetzt nur noch am Tresen."}>
+      <DmPageInhalt />
+    </GastSchranke>
+  );
+}
+
+function DmPageInhalt() {
   const [rounds, setRounds] = useState<Round[]>([]);
   const [dmName, setDmName] = useState("");
   const [title, setTitle] = useState("");

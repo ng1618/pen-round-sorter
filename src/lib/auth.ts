@@ -1,6 +1,7 @@
 import "server-only";
 import { createHmac, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
+import { gastWert, gastWertGueltig } from "./abend.ts";
 import { passwortZuKurz, PASSWORT_MINDESTLAENGE } from "./anmeldung.ts";
 import {
   adminPasswort,
@@ -151,6 +152,45 @@ export function ueberHttps(request: Request): boolean {
 export async function abmelden(): Promise<void> {
   if (await istAngemeldet()) sitzungsVersionErhoehen();
   (await cookies()).delete(COOKIE);
+}
+
+const GAST_COOKIE = "prs_gast";
+const GAST_GUELTIG_S = 7 * 24 * 60 * 60; // ein Wochenende mit Luft
+
+/**
+ * Gast-Passwort fuer `/rank` und `/dm` (Festlegung 20.11., loest die offene
+ * Festlegung „kein Token" ab). Steht in `PRS_GAST_PASSWORT`; fehlt die
+ * Variable, bleibt alles offen wie bisher — etwa am Laptop im Heimnetz.
+ */
+function gastPasswort(): string | null {
+  return process.env.PRS_GAST_PASSWORT?.trim() || null;
+}
+
+export function gastPasswortGesetzt(): boolean {
+  return gastPasswort() !== null;
+}
+
+/** Darf diese Anfrage als Gast schreiben? Der Wirt darf es immer. */
+export async function gastZugelassen(): Promise<boolean> {
+  const passwort = gastPasswort();
+  if (!passwort) return true;
+  if (gastWertGueltig((await cookies()).get(GAST_COOKIE)?.value, passwort)) return true;
+  return istAngemeldet();
+}
+
+/** Passwort pruefen und das Geraet freischalten. Ohne Sperre, siehe `gastWert`. */
+export async function gastFreischalten(passwort: string, sicher: boolean): Promise<boolean> {
+  const richtig = gastPasswort();
+  if (!richtig) return true;
+  if (!gastWertGueltig(gastWert(passwort.trim()), richtig)) return false;
+  (await cookies()).set(GAST_COOKIE, gastWert(richtig), {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: sicher,
+    path: "/",
+    maxAge: GAST_GUELTIG_S,
+  });
+  return true;
 }
 
 /** Die eigentliche Schranke. Wird von der Seite UND von den Routen benutzt. */

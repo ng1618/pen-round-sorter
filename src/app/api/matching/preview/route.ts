@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { istAngemeldet } from "@/lib/auth";
-import { einstellungen, listEntries, listRounds } from "@/lib/db/queries";
+import { auslosungStarten, einstellungen, listEntries, listRounds } from "@/lib/db/queries";
 import { runLeximin } from "@/lib/leximin";
 import { reihenfolgeRegel, runMatching } from "@/lib/matching";
 import { kennzahlen, protokollText, type Auslosung } from "@/lib/protokoll";
@@ -23,6 +23,12 @@ export async function POST() {
   if (runden.length === 0 || spieler.length === 0) {
     return NextResponse.json({ fehler: "🎲 Ohne Tische oder ohne Gäste lässt sich nichts auslosen." }, { status: 400 });
   }
+
+  // Ab hier ist die Sperre gesetzt (20.11.): Gaeste reichen nicht mehr ein,
+  // Runden lassen sich nur noch aufstocken. Gesetzt im selben synchronen Zug
+  // wie der Schnappschuss oben — eine Einreichung kommt entweder davor (und
+  // steht im Schnappschuss) oder wird abgewiesen.
+  auslosungStarten();
 
   const regeln = einstellungen();
 

@@ -12,7 +12,12 @@ async function postJson<T>(url: string, body: unknown): Promise<T> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(`POST ${url} failed: ${res.status}`);
+  if (!res.ok) {
+    // Die Meldung des Servers weiterreichen (20.11.): "POST failed: 423" sagt
+    // einem Gast nichts, "Die Auslosung läuft schon" schon.
+    const { fehler } = (await res.json().catch(() => ({}))) as { fehler?: string };
+    throw new Error(fehler ?? `POST ${url} failed: ${res.status}`);
+  }
   return res.json() as Promise<T>;
 }
 
