@@ -81,8 +81,8 @@ export default function RankPage() {
         <p className="mt-2 text-muted">
           Sag bei jeder Runde, wie gern du mitspielen würdest. Alles, was du nicht anfasst,
           gilt als &bdquo;geht auch&ldquo; &mdash; nur den Namen abzuschicken heißt also{" "}
-          <strong>mir ist alles recht</strong>, nicht &bdquo;nichts davon&ldquo;. Einen Tisch
-          darfst du 🔥 <strong>unbedingt</strong> geben, genau einen.
+          <strong>mir ist alles recht</strong>, nicht &bdquo;nichts davon&ldquo;. Einem Tisch
+          darfst du 🔥 <strong>unbedingt</strong> geben, genau einem.
         </p>
       </div>
 
