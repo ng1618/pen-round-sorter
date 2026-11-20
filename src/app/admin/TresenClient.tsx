@@ -227,7 +227,7 @@ export default function TresenClient() {
                   jaText="wirklich"
                   kompakt
                   onJa={() => handleDelete(e.id)}
-                  className="shrink-0 text-danger hover:text-danger"
+                  className="shrink-0 rounded-md px-1 text-danger hover:bg-danger/10"
                 />
               </li>
             ))}

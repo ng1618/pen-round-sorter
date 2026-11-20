@@ -16,16 +16,11 @@
 # local server-mode data store
 /.data
 
-# private planning docs — not for the public repo (README.md stays public)
-/TODO.md
-/ENTSCHEIDUNGEN.md
-/DATENMODELL.md
-/DATENBANK.md
-/SETUP.md
-/NOTIZEN.md
-/LEARNINGS.md
-/SPICKZETTEL.md
-/Arbeitsdokument_pen-round-sorter_Block1_v2.0.md
+# private planning docs — every root .md except the public ones below
+/*.md
+!/README.md
+!/AGENTS.md
+!/CLAUDE.md
 
 # next.js
 /.next/

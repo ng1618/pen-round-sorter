@@ -53,16 +53,14 @@ sees the same state. The earlier JSON file and the browser-only mode are gone.
 The admin area is password-protected, and the routes that change
 anything require that login — not just the page.
 
-**It runs on a laptop on the local network** — `npm run build && npm run start`,
-reached over that machine's LAN address. That is the main path as of 01.09., not
-a fallback: everyone is in the same house and the QR codes are scanned off the
-screen, so a public address was convenience rather than a requirement. Hosting
-(Railway, verified on a persistent volume on 02.08.) stays configured as a *paid*
-fallback, brought up in the week before the event. Testing from outside the
-network goes through a throwaway tunnel; the codes carry whatever address the
-request arrived on, so a changing tunnel URL costs nothing. See `SETUP.md`,
-section „Betriebsarten". Still to come: unguessable per-event links with their
-QR codes.
+**It runs on Railway** — that is the main path again as of 14.11., switched back
+from the laptop-on-LAN setup (01.09.–14.11.) under time pressure before the
+event. The laptop on the local network, `npm run build && npm run start` reached
+over its LAN address, is now the fallback, brought up only if Railway fails or
+its quota runs out. Testing from outside the network goes through a throwaway
+tunnel; the codes carry whatever address the request arrived on, so a changing
+tunnel URL costs nothing. See `SETUP.md`, section „Betriebsarten". Still to
+come: unguessable per-event links with their QR codes.
 
 ## Start
 
