@@ -11,7 +11,7 @@ export default function Fehlerhinweis({ text }: { text: string | null }) {
   return (
     <p
       role="alert"
-      className="rounded-md border border-red-700 bg-red-700/10 px-3 py-2 text-sm text-red-700"
+      className="rounded-md border border-danger bg-danger/10 px-3 py-2 text-sm text-danger"
     >
       {text}
     </p>

@@ -49,14 +49,14 @@ function Zuruecksetzen({
       {!offen ? (
         <button
           onClick={() => setOffen(true)}
-          className="min-h-11 w-fit rounded-md border border-red-700 px-4 py-2 text-red-700 hover:bg-red-700/10"
+          className="min-h-11 w-fit rounded-md border border-danger px-4 py-2 text-danger hover:bg-danger/10"
         >
           {knopf}
         </button>
       ) : (
         <form
           onSubmit={absenden}
-          className="flex flex-col gap-3 rounded-md border border-red-700 bg-card p-3"
+          className="flex flex-col gap-3 rounded-md border border-danger bg-card p-3"
           role="alertdialog"
         >
           <label className="flex flex-col gap-1">
@@ -70,12 +70,12 @@ function Zuruecksetzen({
               className="min-h-11 rounded-md border border-line bg-card px-3 py-2"
             />
           </label>
-          {fehler && <p className="text-red-700">{fehler}</p>}
+          {fehler && <p className="text-danger">{fehler}</p>}
           <div className="flex flex-wrap gap-2">
             <button
               type="submit"
               disabled={laeuft || passwort.length === 0}
-              className="min-h-11 rounded-md bg-red-700 px-4 py-2 font-medium text-white disabled:opacity-40"
+              className="min-h-11 rounded-md bg-danger px-4 py-2 font-medium text-on-accent disabled:opacity-40"
             >
               {knopf}
             </button>
@@ -240,7 +240,7 @@ export default function EinstellungenClient() {
           </label>
           <button
             type="submit"
-            className="min-h-11 rounded-md bg-accent px-5 py-2 font-medium text-white"
+            className="min-h-11 rounded-md bg-accent px-5 py-2 font-medium text-on-accent"
           >
             {ersteinrichtung ? "Wochenende anlegen" : "Speichern"}
           </button>
@@ -300,7 +300,7 @@ export default function EinstellungenClient() {
                     hilft erst, wenn es eng wird. Fällt eine Leitung aus (10 Plätze für 15), sind es
                     8,0 statt 6,2 erfüllte Topwünsche.
                   </span>
-                  <span className="mt-1 block text-red-700">
+                  <span className="mt-1 block text-danger">
                     Nicht manipulationsfest: wer weiß, dass es läuft, gewinnt mit unehrlichen
                     Angaben. Das Protokoll schreibt den Vorbehalt mit.
                   </span>
@@ -335,7 +335,7 @@ export default function EinstellungenClient() {
       {/* Die zerstörendsten Handlungen ganz unten, hinter dem Passwort. */}
       {!ersteinrichtung && (
         <section className="mt-4 flex flex-col gap-6 border-t border-line pt-6">
-          <h2 className="text-sm font-semibold text-red-700">Gefährliche Ecke</h2>
+          <h2 className="text-sm font-semibold text-danger">Gefährliche Ecke</h2>
 
           <Zuruecksetzen
             umfang="tag"

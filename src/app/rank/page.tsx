@@ -117,7 +117,7 @@ export default function RankPage() {
                       aria-pressed={active}
                       onClick={() => choose(r.id, level)}
                       className={`rounded-md border px-3 py-1.5 ${
-                        active ? "border-accent bg-accent text-white" : "border-line"
+                        active ? "border-accent bg-accent text-on-accent" : "border-line"
                       } ${belegt ? "opacity-40" : ""}`}
                     >
                       <span aria-hidden="true">{emoji}</span> {label}
@@ -140,7 +140,7 @@ export default function RankPage() {
         <button
           type="submit"
           disabled={!playerName.trim() || rounds.length === 0}
-          className="w-fit rounded-md bg-accent px-4 py-2 font-medium text-white disabled:opacity-40"
+          className="w-fit rounded-md bg-accent px-4 py-2 font-medium text-on-accent disabled:opacity-40"
         >
           Abschicken
         </button>

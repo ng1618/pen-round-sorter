@@ -333,7 +333,7 @@ export default function AuslosungClient() {
           <div className="mt-3 flex flex-wrap gap-2">
             <button
               onClick={() => handleFestlegen(true)}
-              className="min-h-11 rounded-md bg-accent px-4 py-2 text-sm font-medium text-white"
+              className="min-h-11 rounded-md bg-accent px-4 py-2 text-sm font-medium text-on-accent"
             >
               Trotzdem festlegen
             </button>
@@ -369,7 +369,7 @@ export default function AuslosungClient() {
             className={
               assignments
                 ? "min-h-11 rounded-md border border-line px-4 py-2 text-sm"
-                : "min-h-11 rounded-md bg-accent px-5 py-3 font-medium text-white"
+                : "min-h-11 rounded-md bg-accent px-5 py-3 font-medium text-on-accent"
             }
           >
             {assignments ? "Neu auslosen" : "Auslosen"}
@@ -403,7 +403,7 @@ export default function AuslosungClient() {
             <button
               onClick={() => handleFestlegen()}
               disabled={ueberbelegt.length > 0}
-              className="min-h-11 rounded-md bg-accent px-5 py-3 font-medium text-white disabled:opacity-40"
+              className="min-h-11 rounded-md bg-accent px-5 py-3 font-medium text-on-accent disabled:opacity-40"
             >
               Festlegen
             </button>
@@ -459,8 +459,8 @@ export default function AuslosungClient() {
           )}
 
           {ueberbelegt.length > 0 && (
-            <div className="mt-3 rounded-md border-2 border-red-700 p-3 text-sm" role="alert">
-              <p className="font-medium text-red-700">
+            <div className="mt-3 rounded-md border-2 border-danger p-3 text-sm" role="alert">
+              <p className="font-medium text-danger">
                 Festlegen ist gesperrt: {ueberbelegt.length === 1 ? "eine Runde ist" : `${ueberbelegt.length} Runden sind`}{" "}
                 überbelegt.
               </p>
@@ -500,7 +500,7 @@ export default function AuslosungClient() {
             <div className="flex flex-wrap gap-2">
               <button
                 onClick={handleProtokollFestgelegt}
-                className="min-h-11 rounded-md bg-accent px-4 py-2 text-sm font-medium text-white"
+                className="min-h-11 rounded-md bg-accent px-4 py-2 text-sm font-medium text-on-accent"
               >
                 Protokoll herunterladen
               </button>

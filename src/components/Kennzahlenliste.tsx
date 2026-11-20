@@ -23,7 +23,7 @@ export default function Kennzahlenliste({
           {z.label}: {z.anzahl} Spielende
         </li>
       ))}
-      {ohnePlatz > 0 && <li className="text-red-700">Ohne Platz: {ohnePlatz} Spielende</li>}
+      {ohnePlatz > 0 && <li className="text-danger">Ohne Platz: {ohnePlatz} Spielende</li>}
       {jeLevel.length === 0 && ohnePlatz === 0 && <li>Noch nichts zugeordnet.</li>}
     </ul>
   );

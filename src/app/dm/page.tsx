@@ -164,7 +164,7 @@ export default function DmPage() {
         <button
           type="submit"
           disabled={sendetAnzeige}
-          className="mt-2 rounded-md bg-accent px-4 py-2 font-medium text-white disabled:opacity-40"
+          className="mt-2 rounded-md bg-accent px-4 py-2 font-medium text-on-accent disabled:opacity-40"
         >
           {sendetAnzeige ? "Wird eingetragen …" : "Runde eintragen"}
         </button>

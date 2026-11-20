@@ -62,17 +62,17 @@ export default function RundenErgebnis({
             key={runde.id}
             className={
               zuViele
-                ? "rounded-md border-2 border-red-700 bg-card p-3 text-sm"
+                ? "rounded-md border-2 border-danger bg-card p-3 text-sm"
                 : "rounded-md border border-line bg-card p-3 text-sm"
             }
           >
             <p className="font-medium">
               {runde.title} — Leitung {runde.dmName}{" "}
-              <span className={zuViele ? "text-red-700" : undefined}>
+              <span className={zuViele ? "text-danger" : undefined}>
                 ({sitzend.length}/{runde.capacity})
               </span>
               {zuViele && (
-                <span className="ml-2 text-red-700">
+                <span className="ml-2 text-danger">
                   überbelegt — {sitzend.length - runde.capacity} zu viel
                 </span>
               )}
@@ -93,7 +93,7 @@ export default function RundenErgebnis({
                   aria-label={`Plätze in ${runde.title}`}
                   className="w-16 rounded-md border border-line bg-card px-2 py-1"
                 />
-                {zuViele && <span className="text-red-700">für alle reicht {sitzend.length}</span>}
+                {zuViele && <span className="text-danger">für alle reicht {sitzend.length}</span>}
               </label>
             )}
             <ul className="mt-2 flex flex-col gap-1">
@@ -110,7 +110,7 @@ export default function RundenErgebnis({
       })}
 
       {ohnePlatz.length > 0 && (
-        <div className="rounded-md border border-red-700/40 bg-card p-3 text-sm">
+        <div className="rounded-md border border-danger/40 bg-card p-3 text-sm">
           <p className="font-medium">Ohne Platz ({ohnePlatz.length})</p>
           <ul className="mt-2 flex flex-col gap-1">
             {ohnePlatz.map((z) => (
