@@ -307,6 +307,50 @@ pruefe("Wochenende nullen laesst nur ein leeres Tag 1 stehen", () => {
   return "ein leeres Tag 1, Passwort und Tokens unveraendert";
 });
 
+pruefe("Sperre ab dem Auslosen: setzen, abbrechen, zuruecksetzen", () => {
+  // 20.11.: ab dem ersten "Auslosen" nehmen Gaeste nichts mehr an, Runden sind
+  // gesperrt. Abbrechen nur, solange nichts festgelegt ist; Zuruecksetzen und
+  // ein neuer Tag fangen offen an.
+  q.wochenendeAnlegen("Sperrwochenende", 2);
+  if (q.auslosungLaeuft()) throw new Error("neuer Tag startet gesperrt");
+
+  q.auslosungStarten();
+  if (!q.auslosungLaeuft()) throw new Error("Starten sperrt nicht");
+  const erste = db.prepare("SELECT ausgelost_am FROM event WHERE id = ?").get(q.aktuellesEventId()).ausgelost_am;
+  q.auslosungStarten();
+  const zweite = db.prepare("SELECT ausgelost_am FROM event WHERE id = ?").get(q.aktuellesEventId()).ausgelost_am;
+  if (erste !== zweite) throw new Error("zweites Auslosen verschiebt den Beginn");
+
+  if (!q.auslosungAbbrechen()) throw new Error("Abbrechen ohne Festlegen scheitert");
+  if (q.auslosungLaeuft()) throw new Error("Abbrechen hebt die Sperre nicht auf");
+
+  q.auslosungStarten();
+  const r = q.addRound({ dmName: "Mara", title: "Sperrrunde", vibe: "", capacity: 4 });
+  const s = q.addEntry({ playerName: "Ida", preferences: [{ roundId: r.id, level: 3 }] });
+  q.commitLauf({
+    seed: "",
+    konfiguration: { verfahren: "rsd" },
+    eingabestand: { runden: [r], spieler: [s] },
+    losreihenfolge: [s.id],
+    zuordnungen: [{ playerId: s.id, roundId: r.id, receivedLevel: 3 }],
+  });
+  if (q.auslosungAbbrechen()) throw new Error("Abbrechen nach dem Festlegen gelang");
+  if (!q.auslosungLaeuft()) throw new Error("Sperre nach dem Festlegen weg");
+
+  q.resetAll();
+  if (q.auslosungLaeuft()) throw new Error("Tag zuruecksetzen hebt die Sperre nicht auf");
+
+  q.auslosungStarten();
+  if (!q.neuerTag().ok) throw new Error("neuerTag scheiterte");
+  if (q.auslosungLaeuft()) throw new Error("neuer Tag erbt die Sperre");
+
+  q.auslosungStarten();
+  q.wochenendeZuruecksetzen();
+  if (q.auslosungLaeuft()) throw new Error("Wochenende nullen hebt die Sperre nicht auf");
+
+  return "setzen einmalig, abbrechen nur vor dem Festlegen, Reset und neuer Tag offen";
+});
+
 // Phase 4 (15.11.): Mehrfach-Alarm und Teilnehmerliste.
 
 pruefe("Mehrfach-Alarm zaehlt nur geaenderte Rankings", () => {

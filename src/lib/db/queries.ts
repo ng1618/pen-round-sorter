@@ -595,15 +595,23 @@ export function neuesterLaufVoll(db: Database.Database = getDb()) {
   const eventId = aktuellesEventId(db);
   const lauf = db
     .prepare(
-      "SELECT id, seed, konfiguration, eingabestand, losreihenfolge FROM matching_lauf " +
+      "SELECT id, seed, konfiguration, eingabestand, losreihenfolge, erzeugt_am FROM matching_lauf " +
         "WHERE event_id = ? ORDER BY erzeugt_am DESC, id DESC LIMIT 1",
     )
     .get(eventId) as
-    | { id: number; seed: string; konfiguration: string; eingabestand: string; losreihenfolge: string }
+    | {
+        id: number;
+        seed: string;
+        konfiguration: string;
+        eingabestand: string;
+        losreihenfolge: string;
+        erzeugt_am: string;
+      }
     | undefined;
   if (!lauf) return null;
 
   return {
+    erzeugtAm: nachMillisekunden(lauf.erzeugt_am),
     seed: lauf.seed,
     konfiguration: JSON.parse(lauf.konfiguration) as Record<string, unknown>,
     eingabestand: JSON.parse(lauf.eingabestand) as { runden: Round[]; spieler: PlayerEntry[] },
@@ -658,6 +666,8 @@ export function resetAll(db: Database.Database = getDb()): void {
   const eventId = aktuellesEventId(db);
 
   db.transaction(() => {
+    // Ein zurueckgesetzter Tag ist wieder offen (Sperre ab dem Auslosen).
+    db.prepare("UPDATE event SET ausgelost_am = NULL WHERE id = ?").run(eventId);
     // Reihenfolge zaehlt: zuordnung.runden_id steht auf RESTRICT und wuerde das
     // Loeschen der Runden sonst blockieren.
     db.prepare(
@@ -692,7 +702,40 @@ export function wochenendeZuruecksetzen(db: Database.Database = getDb()): void {
     db.prepare(`DELETE FROM spieler WHERE event_id IN (${dieseTage})`).run(w);
     db.prepare(`DELETE FROM runde WHERE event_id IN (${dieseTage})`).run(w);
     db.prepare("DELETE FROM event WHERE wochenende_id = ? AND tag > 1").run(w);
+    db.prepare("UPDATE event SET ausgelost_am = NULL WHERE wochenende_id = ?").run(w);
   })();
   // Gab es noch gar keinen Tag, legt das ein leeres Tag 1 an.
   aktuellesEventId(db);
+}
+
+/**
+ * Laeuft die Auslosung dieses Tages schon? Ab dem ersten „Auslosen" nehmen
+ * Gaeste nichts mehr an, und Runden lassen sich nur noch aufstocken (20.11.).
+ */
+export function auslosungLaeuft(db: Database.Database = getDb()): boolean {
+  const zeile = db
+    .prepare("SELECT ausgelost_am FROM event WHERE id = ?")
+    .get(aktuellesEventId(db)) as { ausgelost_am: string | null } | undefined;
+  return zeile?.ausgelost_am != null;
+}
+
+/** Sperre setzen. Ein zweiter Wurf verschiebt den Beginn nicht. */
+export function auslosungStarten(db: Database.Database = getDb()): void {
+  db.prepare(
+    "UPDATE event SET ausgelost_am = COALESCE(ausgelost_am, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) WHERE id = ?",
+  ).run(aktuellesEventId(db));
+}
+
+/**
+ * Sperre wieder aufheben — nur, solange nichts festgelegt ist. Sonst friert
+ * ein zu frueher Klick auf „Auslosen" den ganzen Abend ein.
+ *
+ * @returns `false`, wenn schon ein Lauf festgelegt ist.
+ */
+export function auslosungAbbrechen(db: Database.Database = getDb()): boolean {
+  const eventId = aktuellesEventId(db);
+  const festgelegt = db.prepare("SELECT 1 FROM matching_lauf WHERE event_id = ? LIMIT 1").get(eventId);
+  if (festgelegt) return false;
+  db.prepare("UPDATE event SET ausgelost_am = NULL WHERE id = ?").run(eventId);
+  return true;
 }

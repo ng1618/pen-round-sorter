@@ -1,0 +1,121 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+
+export type Zugang = {
+  auslosungLaeuft: boolean;
+  gastPasswortGesetzt: boolean;
+  gastFrei: boolean;
+  wirt: boolean;
+};
+
+/** Was darf dieses Geraet gerade? Liest `/api/zugang`. */
+export function useZugang() {
+  const [zugang, setZugang] = useState<Zugang | null>(null);
+  const laden = useCallback(async () => {
+    try {
+      const res = await fetch("/api/zugang", { cache: "no-store" });
+      if (res.ok) setZugang(await res.json());
+    } catch {
+      // Ohne Antwort bleibt die Seite benutzbar; der Server prueft ohnehin.
+    }
+  }, []);
+  useEffect(() => {
+    // Als eigene async-Funktion: sonst beanstandet der react-hooks-Regelsatz
+    // einen setState-Aufruf direkt im Effekt.
+    void (async () => {
+      await laden();
+    })();
+  }, [laden]);
+  return { zugang, laden };
+}
+
+/**
+ * Vor `/rank` und `/dm` (20.11.): erst das Gast-Passwort, dann die Seite.
+ * Und ab dem Auslosen statt der Seite der Hinweis, sich am Tresen zu melden —
+ * ausser fuer den Wirt, der Nachzuegler noch eintragen kann.
+ */
+export default function GastSchranke({
+  sperrText,
+  children,
+}: {
+  sperrText: string;
+  children: React.ReactNode;
+}) {
+  const { zugang, laden } = useZugang();
+  const [passwort, setPasswort] = useState("");
+  const [fehler, setFehler] = useState<string | null>(null);
+  const [laeuft, setLaeuft] = useState(false);
+
+  // Solange unbekannt, die Seite zeigen: der Server prueft beim Absenden ohnehin.
+  if (!zugang) return <>{children}</>;
+
+  if (!zugang.gastFrei) {
+    return (
+      <div className="flex flex-col gap-4">
+        <h1 className="text-2xl font-bold">🔑 Kurz das Passwort</h1>
+        <p className="text-muted">Das Passwort für heute wird am Abend angesagt. Einmal pro Handy reicht.</p>
+        <form
+          onSubmit={async (e) => {
+            e.preventDefault();
+            setLaeuft(true);
+            setFehler(null);
+            const res = await fetch("/api/gast", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ passwort }),
+            }).catch(() => null);
+            if (res?.ok) {
+              await laden();
+            } else {
+              const daten = (await res?.json().catch(() => ({}))) ?? {};
+              setFehler(daten.fehler ?? "Das hat nicht geklappt — noch einmal versuchen.");
+            }
+            setLaeuft(false);
+          }}
+          className="flex max-w-sm flex-col gap-3"
+        >
+          <input
+            type="text"
+            autoComplete="off"
+            autoCapitalize="none"
+            autoFocus
+            value={passwort}
+            onChange={(e) => setPasswort(e.target.value)}
+            className="min-h-11 rounded-md border border-line bg-card px-3 py-2"
+            aria-label="Passwort"
+          />
+          {fehler && <p className="text-sm text-danger">{fehler}</p>}
+          <button
+            type="submit"
+            disabled={laeuft || passwort.trim().length === 0}
+            className="min-h-11 w-fit rounded-md bg-accent px-5 py-2 font-medium text-on-accent disabled:opacity-40"
+          >
+            Weiter
+          </button>
+        </form>
+      </div>
+    );
+  }
+
+  if (zugang.auslosungLaeuft && !zugang.wirt) {
+    return (
+      <div className="flex flex-col gap-4">
+        <h1 className="text-2xl font-bold">🎲 Die Auslosung läuft</h1>
+        <p className="text-muted">{sperrText}</p>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {zugang.auslosungLaeuft && zugang.wirt && (
+        <p className="mb-4 rounded-md border border-accent bg-card p-3 text-sm" role="status">
+          Die Auslosung läuft — Gäste sind gesperrt. Du bist als Wirt angemeldet und kannst hier
+          Nachzügler eintragen; beim Festlegen kommt dann die Rückfrage „dazugekommen“.
+        </p>
+      )}
+      {children}
+    </>
+  );
+}

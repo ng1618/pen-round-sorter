@@ -65,6 +65,29 @@ export function vorschauVeraendert(konfiguration: Record<string, unknown>): bool
 }
 
 /**
+ * Die Konfiguration eines Korrekturlaufs („Von Hand ändern").
+ *
+ * Uebernommen wird, was der festgelegte Lauf war: Verfahren, Einstellungen,
+ * fruehere Aufstockungen. Bis zum 20.11. stand hier fest `verfahren: "rsd"` —
+ * ein korrigierter Leximin-Lauf hiess im Protokoll dann „Losverfahren …
+ * manipulationsfest", und die Warnung fehlte.
+ *
+ * Nicht uebernommen wird die Handarbeit des alten Laufs (`manuellKorrigiert`,
+ * `tauschrunden`): sie beschreibt jenen Lauf. Was in der Korrektur geschieht,
+ * schreibt die Oberflaeche neu hinein.
+ */
+export function korrekturKonfiguration(alt: Record<string, unknown>): Record<string, unknown> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { manuellKorrigiert, tauschrunden, ...rest } = alt;
+  return {
+    ...rest,
+    verfahren: rest.verfahren ?? "rsd",
+    grundlage: "letzter Lauf",
+    reihenfolge: "uebernommen",
+  };
+}
+
+/**
  * Prüft eine Auslosung gegen **ihren eigenen Schnappschuss**, nicht gegen den
  * Live-Stand — was gespeichert wird, muss in sich stimmig sein.
  *

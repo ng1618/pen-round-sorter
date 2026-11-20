@@ -15,10 +15,13 @@ export async function GET() {
     return NextResponse.json({ fehler: "Nicht angemeldet." }, { status: 401 });
   }
 
-  const lauf = neuesterLaufVoll() as Auslosung | null;
+  const lauf = neuesterLaufVoll();
   if (!lauf) {
     return NextResponse.json({ fehler: "📜 Es ist noch nichts eingetragen — erst auslosen und festlegen." }, { status: 404 });
   }
 
-  return NextResponse.json({ protokoll: protokollText(lauf) });
+  // Die Zeit des Festlegens, nicht die des Herunterladens (20.11.). Sonst sah
+  // derselbe Lauf, zweimal geladen, wie zwei verschiedene Auslosungen aus.
+  const { erzeugtAm, ...auslosung } = lauf;
+  return NextResponse.json({ protokoll: protokollText(auslosung as Auslosung, new Date(erzeugtAm)) });
 }

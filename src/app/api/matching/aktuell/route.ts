@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { istAngemeldet } from "@/lib/auth";
-import { listEntries, listRounds, neuesteZuordnungen } from "@/lib/db/queries";
+import { korrekturKonfiguration } from "@/lib/auslosung-pruefen";
+import { listEntries, listRounds, neuesterLaufVoll, neuesteZuordnungen } from "@/lib/db/queries";
 import { kennzahlen, levelVon, protokollText, type Auslosung } from "@/lib/protokoll";
 import type { Level } from "@/lib/types";
 
@@ -51,8 +52,9 @@ export async function GET() {
     seed: "",
     // `reihenfolge: "uebernommen"` — hier wird nicht gelost. Die Reihenfolge
     // stammt aus dem vorherigen Lauf; ohne diese Angabe behauptete das
-    // Protokoll eine Losregel, nach der gar nicht gezogen wurde.
-    konfiguration: { verfahren: "rsd", grundlage: "letzter Lauf", reihenfolge: "uebernommen" },
+    // Protokoll eine Losregel, nach der gar nicht gezogen wurde. Verfahren und
+    // Einstellungen kommen aus dem festgelegten Lauf (korrekturKonfiguration).
+    konfiguration: korrekturKonfiguration(neuesterLaufVoll()?.konfiguration ?? {}),
     eingabestand: { runden, spieler },
     // Die bisherige Reihenfolge, gefiltert; wer neu ist, kommt hinten dran.
     losreihenfolge: [

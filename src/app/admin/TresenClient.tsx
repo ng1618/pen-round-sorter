@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import AdminUnterleiste from "@/components/AdminUnterleiste";
 import Bestaetigung from "@/components/Bestaetigung";
 import Fehlerhinweis from "@/components/Fehlerhinweis";
+import { useZugang } from "@/components/GastSchranke";
 import Tagesanzeige from "@/components/Tagesanzeige";
 import { dataStore } from "@/lib/dataStore";
 import {
@@ -41,6 +42,9 @@ export default function TresenClient() {
    * Serverbild kennt ihn noch nicht.
    */
   const [geladen, setGeladen] = useState(false);
+  /** Sperre ab dem Auslosen und Gast-Passwort (20.11.). */
+  const { zugang } = useZugang();
+  const laeuft = zugang?.auslosungLaeuft ?? false;
 
   async function refresh() {
     setTagInfo(await (await fetch("/api/wochenende")).json());
@@ -147,6 +151,19 @@ export default function TresenClient() {
 
       <Fehlerhinweis text={fehler} />
 
+      {zugang && !zugang.gastPasswortGesetzt && (
+        <p className="rounded-md border border-danger bg-card p-3 text-sm text-danger" role="alert">
+          Kein Gast-Passwort gesetzt — Einreichen und Runden eintragen sind offen für jeden mit der
+          Adresse. Setzen über <code>PRS_GAST_PASSWORT</code> (Railway bzw. <code>.env.local</code>).
+        </p>
+      )}
+      {laeuft && (
+        <p className="rounded-md border border-accent bg-card p-3 text-sm" role="status">
+          <strong>Die Auslosung läuft.</strong> Gäste können nicht mehr einreichen, Runden sind
+          gesperrt (Plätze aufstocken geht in der Auslosung). Absagen gehen weiter.
+        </p>
+      )}
+
       {geladen ? (
       <NaechsterSchritt
         rounds={rounds}
@@ -170,7 +187,7 @@ export default function TresenClient() {
           )}
           <ul className="mt-2 flex flex-col gap-2">
             {rounds.map((r) => (
-              <RundenZeile key={r.id} runde={r} onSpeichern={handleRunde} />
+              <RundenZeile key={r.id} runde={r} onSpeichern={handleRunde} gesperrt={laeuft} />
             ))}
             {rounds.length === 0 && <li className="text-sm text-muted">Noch nichts.</li>}
           </ul>
@@ -366,9 +383,12 @@ function NaechsterSchritt({
 function RundenZeile({
   runde,
   onSpeichern,
+  gesperrt,
 }: {
   runde: Round;
   onSpeichern: (id: number, felder: RundenFelder) => Promise<boolean>;
+  /** Ab dem Auslosen (20.11.): nicht mehr bearbeitbar, Aufstocken in der Auslosung. */
+  gesperrt: boolean;
 }) {
   const [offen, setOffen] = useState(false);
   const [entwurf, setEntwurf] = useState<RundenFelder>({
@@ -401,9 +421,13 @@ function RundenZeile({
             {runde.vibe && <p className="mt-1 text-xs text-muted">{runde.vibe}</p>}
             <p className="mt-1 text-xs text-muted">{runde.capacity} Plätze</p>
           </div>
-          <button onClick={bearbeiten} className="shrink-0 text-accent hover:underline">
-            bearbeiten
-          </button>
+          {gesperrt ? (
+            <span className="shrink-0 text-xs text-muted">gesperrt</span>
+          ) : (
+            <button onClick={bearbeiten} className="shrink-0 text-accent hover:underline">
+              bearbeiten
+            </button>
+          )}
         </div>
       </li>
     );
